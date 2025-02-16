@@ -21,7 +21,7 @@ class Wrapper {
     itemSize = 50;
 }
 
-fdescribe('Scroller', () => {
+describe('Scroller', () => {
     let fixture: ComponentFixture<Wrapper>;
     let component: Wrapper;
     let scroller: Scroller;
@@ -88,16 +88,9 @@ fdescribe('Scroller', () => {
                 scrollerDiv.dispatchEvent(new Event('scroll'));
 
                 const renderedItems = getRenderedItems();
-                const firstInViewport = renderedItems.find((x) => {
-                    const itemRect = x.getBoundingClientRect();
-                    const viewportRect = scrollerDiv.getBoundingClientRect();
-                    return itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top;
-                });
-                const lastInViewport = renderedItems.find((x, i) => {
-                    const itemRect = x.getBoundingClientRect();
-                    const viewportRect = scrollerDiv.getBoundingClientRect();
-                    return itemRect.bottom === viewportRect.bottom && i === renderedItems.length - 1;
-                });
+
+                const firstInViewport = findByBoundingClientRect(renderedItems, (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top);
+                const lastInViewport = findByBoundingClientRect(renderedItems, (itemRect, viewportRect) => itemRect.bottom === viewportRect.bottom);
 
                 expect(scroller.last).toBe(scroller.items.length);
                 expect(firstInViewport).toBeTruthy();
@@ -111,16 +104,8 @@ fdescribe('Scroller', () => {
                 scrollerDiv.dispatchEvent(new Event('scroll'));
 
                 const renderedItems = getRenderedItems();
-                const firstInViewport = renderedItems.find((x) => {
-                    const itemRect = x.getBoundingClientRect();
-                    const viewportRect = scrollerDiv.getBoundingClientRect();
-                    return itemRect.top < viewportRect.top;
-                });
-                const lastInViewport = renderedItems.find((x) => {
-                    const itemRect = x.getBoundingClientRect();
-                    const viewportRect = scrollerDiv.getBoundingClientRect();
-                    return itemRect.bottom > viewportRect.bottom;
-                });
+                const firstInViewport = findByBoundingClientRect(renderedItems, (itemRect, viewportRect) => itemRect.top < viewportRect.top);
+                const lastInViewport = findByBoundingClientRect(renderedItems, (itemRect, viewportRect) => itemRect.bottom > viewportRect.bottom);
 
                 expect(scroller.first).not.toBe(0);
                 expect(firstInViewport).toBeTruthy();
@@ -203,7 +188,7 @@ describe('initPositions', () => {
         ]);
     });
 
-    it('should calculate real positions and adjust leftover positions', () => {
+    it('should calculate real positions and adjust leftover positions from top down', () => {
         const positions = initPositions({ items: getItems(), getItemSize: () => 200, viewportSize: 200 });
         positions.updateByIndex(1);
 
@@ -213,6 +198,19 @@ describe('initPositions', () => {
             { size: 200, pos: 400 },
             { size: 40, pos: 600 },
             { size: 40, pos: 640 }
+        ]);
+    });
+
+    it('should calculate real positions and adjust leftover positions from bottom up', () => {
+        const positions = initPositions({ items: getItems(), getItemSize: () => 200, viewportSize: 200 });
+        positions.updateByIndex(-1);
+
+        expect(positions.positions).toEqual([
+            { size: 40, pos: 0 },
+            { size: 40, pos: 40 },
+            { size: 40, pos: 80 },
+            { size: 200, pos: 120 },
+            { size: 200, pos: 320 }
         ]);
     });
 });
