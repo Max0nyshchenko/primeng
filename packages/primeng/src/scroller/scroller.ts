@@ -713,14 +713,30 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 items: this.items,
                 viewportSize: this.orientation === 'horizontal' ? this.elementViewChild?.nativeElement.offsetWidth || 0 : this.elementViewChild?.nativeElement.offsetHeight || 0,
                 getItemSize: (item, idx) => this._getItemSize(item, idx, 0).mainAxis,
-                onTotalSizeChanged: (spacerSizeDiff: number) => {
+                onChange: ({ jump, totalSizeDiff }) => {
                     const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
-                    console.error('onTotalSizeChanged', { spacerSizeDiff, scrollTop });
-                    this.setSpacerSize();
-                    this.cd.detectChanges();
-                    this.scrollTo({ top: scrollTop + spacerSizeDiff });
-                    this.cd.detectChanges();
+                    console.error('onChange initPositions', { totalSizeDiff, scrollTop, jump });
+                    if (totalSizeDiff) {
+                        this.setSpacerSize();
+                        this.cd.detectChanges();
+                    }
+                    if (jump) {
+                        this.scrollTo({ top: scrollTop + jump });
+                        this.cd.detectChanges();
+                    }
                 }
+                //onTotalSizeChanged: (spacerSizeDiff: number) => {
+                //    const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
+                //    console.error('onTotalSizeChanged', { spacerSizeDiff, scrollTop });
+                //    this.setSpacerSize();
+                //    this.cd.detectChanges();
+                //},
+                //onJump: (jump) => {
+                //    const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
+                //    console.error('onJump', { jump, scrollTop });
+                //    this.scrollTo({ top: scrollTop + jump });
+                //    this.cd.detectChanges();
+                //}
             });
 
             this.setSize();
@@ -762,6 +778,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
 
     scrollTo(options: ScrollToOptions) {
         // this.lastScrollPos = this.both ? { top: 0, left: 0 } : 0;
+        if (typeof options.top === 'number') this._poss.updateByScrollPos(options.top);
         this.elementViewChild?.nativeElement?.scrollTo(options);
     }
 
@@ -1102,9 +1119,9 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             if (!this._appendOnly || (this._appendOnly && isScrollDownOrRight)) {
                 const calculateScrolledIdx = (idx: number) => (idx > this._itemsPositions.mainAxis.length - this.numItemsInViewport ? this._itemsPositions.mainAxis.length - this.numItemsInViewport : idx);
                 //const currentIndex = this.scrolledIndex !== undefined ? calculateScrolledIdx(this.scrolledIndex) : this.getFirstInViewport(scrollPos);
-                console.error('onScrollPositionChange before', { scrollPos, 995: { ...this._poss.positions.at(995) }, poss: JSON.parse(JSON.stringify(this._poss.positions)) });
+                console.error('onScrollPositionChange before', { scrollPos, poss: JSON.parse(JSON.stringify(this._poss.positions)) });
                 const currentIndex = this._poss.findByPos(scrollPos);
-                console.error('onScrollPositionChange after', { scrollPos, currentIndex, 995: { ...this._poss.positions.at(995) }, poss: JSON.parse(JSON.stringify(this._poss.positions)) });
+                console.error('onScrollPositionChange after', { scrollPos, currentIndex, [currentIndex]: this._poss.positions.at(currentIndex), poss: JSON.parse(JSON.stringify(this._poss.positions)) });
                 const triggerIndex = calculateTriggerIndex(currentIndex, this.first, this.last, this.numItemsInViewport, this.d_numToleratedItems, isScrollDownOrRight, false);
 
                 newFirst = calculateFirst(currentIndex, triggerIndex, this.first, this.last, this.numItemsInViewport, this.d_numToleratedItems, isScrollDownOrRight);
@@ -1499,7 +1516,21 @@ export const mergePositions = (positions: ItemPos[], positionsToMerge: ItemPos[]
     return resPositions;
 };
 
-export const initPositions = <T>({ items, getItemSize, viewportSize, onTotalSizeChanged = () => {} }: { items: T[]; getItemSize: (item: T, idx: number) => number; viewportSize: number; onTotalSizeChanged?: (totalSizeDiff: number) => void }) => {
+export const initPositions = <T>({
+    items,
+    getItemSize,
+    viewportSize,
+    onTotalSizeChanged = () => {},
+    onJump = () => {},
+    onChange = () => {}
+}: {
+    items: T[];
+    getItemSize: (item: T, idx: number) => number;
+    viewportSize: number;
+    onTotalSizeChanged?: (totalSizeDiff: number) => void;
+    onJump?: (jump: number) => void;
+    onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
+}) => {
     const positions = getInitPositions(items);
 
     const binarySearchFirst = (pos: number, positions: ItemPos[]): number => {
@@ -1548,11 +1579,16 @@ export const initPositions = <T>({ items, getItemSize, viewportSize, onTotalSize
 
     const updateByIndexWithEvents = (index: number) => {
         const initTotalSize = totalSize();
+        const initIndexPos = positions.at(index).pos;
 
         updateByIndex(index);
 
         const totalSizeDiff = totalSize() - initTotalSize;
+        const jump = positions.at(index).pos - initIndexPos;
+        console.log('updateByIndexWithEvents', { initIndexPos, index, finalIndexPos: positions.at(index).pos });
         if (totalSizeDiff !== 0) onTotalSizeChanged(totalSizeDiff);
+        if (jump !== 0) onJump(jump);
+        if (jump !== 0 || totalSizeDiff !== 0) onChange({ jump, totalSizeDiff });
     };
 
     const updateByScrollPos = (scrollPos: number) => {
