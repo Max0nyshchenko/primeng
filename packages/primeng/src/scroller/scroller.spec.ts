@@ -31,10 +31,15 @@ fdescribe('mytest', () => {
         return items.find((x, i) => predicate(x.getBoundingClientRect(), scrollerDiv.getBoundingClientRect(), i));
     };
     const getFirstInViewport = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
-        findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top < viewportRect.top && itemRect.bottom >= viewportRect.top);
+        findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top);
     const getLastInViewport = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
-        findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top < viewportRect.bottom && itemRect.bottom >= viewportRect.bottom);
+        findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.bottom && itemRect.bottom >= viewportRect.bottom);
     const getBoundaryViewportItems = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) => ({ lastInViewport: getLastInViewport(fixture, scrollerDiv), firstInViewport: getFirstInViewport(fixture, scrollerDiv) });
+    const expandInViewport = <T>(num: number, fixture: ComponentFixture<T>) => {
+        getRenderedItems(fixture)
+            .slice(0, num)
+            .forEach((item) => item.click());
+    };
 
     describe('Scroller', () => {
         let fixture: ComponentFixture<BasicScrollerWrapper>;
@@ -64,23 +69,14 @@ fdescribe('mytest', () => {
         });
 
         it('should scrollToIndex of the middle index with itemSize equals to 50', () => {
-            scroller.scrollToIndex(scroller.items.length / 2);
+            const itemIdx = scroller.items.length / 2;
+            scroller.scrollToIndex(itemIdx);
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            const renderedItems = getRenderedItems(fixture);
-            const firstInViewport = renderedItems.find((x) => {
-                const itemRect = x.getBoundingClientRect();
-                const viewportRect = scrollerDiv.getBoundingClientRect();
-                return itemRect.top < viewportRect.top;
-            });
-            const lastInViewport = renderedItems.find((x) => {
-                const itemRect = x.getBoundingClientRect();
-                const viewportRect = scrollerDiv.getBoundingClientRect();
-                return itemRect.bottom > viewportRect.bottom;
-            });
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(scroller.first).not.toBe(0);
-            expect(firstInViewport).toBeTruthy();
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
         });
 
@@ -90,10 +86,7 @@ fdescribe('mytest', () => {
             scroller.scrollToIndex(scroller.items.length - 1);
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            const renderedItems = getRenderedItems(fixture);
-
-            const firstInViewport = findByBoundingClientRect(renderedItems, scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top);
-            const lastInViewport = findByBoundingClientRect(renderedItems, scrollerDiv, (itemRect, viewportRect) => itemRect.bottom === viewportRect.bottom);
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(scroller.last).toBe(scroller.items.length);
             expect(firstInViewport).toBeTruthy();
@@ -103,15 +96,14 @@ fdescribe('mytest', () => {
         it('should scrollToIndex of the middle index with itemSize equals to 5', () => {
             component.itemSize = 5;
             fixture.detectChanges();
-            scroller.scrollToIndex(scroller.items.length / 2);
+            const itemIdx = scroller.items.length / 2;
+            scroller.scrollToIndex(itemIdx);
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            const renderedItems = getRenderedItems(fixture);
-            const firstInViewport = findByBoundingClientRect(renderedItems, scrollerDiv, (itemRect, viewportRect) => itemRect.top < viewportRect.top);
-            const lastInViewport = findByBoundingClientRect(renderedItems, scrollerDiv, (itemRect, viewportRect) => itemRect.bottom > viewportRect.bottom);
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(scroller.first).not.toBe(0);
-            expect(firstInViewport).toBeTruthy();
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
         });
 
@@ -119,19 +111,8 @@ fdescribe('mytest', () => {
             scroller.scrollTo({ top: scroller._poss.totalSize() });
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            const renderedItems = getRenderedItems(fixture);
-            const firstInViewport = renderedItems.find((x) => {
-                const itemRect = x.getBoundingClientRect();
-                const viewportRect = scrollerDiv.getBoundingClientRect();
-                return itemRect.top < viewportRect.top;
-            });
-            const lastInViewport = renderedItems.find((x) => {
-                const itemRect = x.getBoundingClientRect();
-                const viewportRect = scrollerDiv.getBoundingClientRect();
-                return itemRect.bottom === viewportRect.bottom;
-            });
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
-            console.log('finish', { scrollTop: scrollerDiv.scrollTop, scrollHeight: scrollerDiv.scrollHeight });
             expect(scroller.last).toBe(scroller.items.length);
             expect(firstInViewport).toBeTruthy();
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
@@ -141,17 +122,7 @@ fdescribe('mytest', () => {
             scroller.scrollTo({ top: scroller._poss.totalSize() / 2 });
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            const renderedItems = getRenderedItems(fixture);
-            const firstInViewport = renderedItems.find((x) => {
-                const itemRect = x.getBoundingClientRect();
-                const viewportRect = scrollerDiv.getBoundingClientRect();
-                return itemRect.top < viewportRect.top;
-            });
-            const lastInViewport = renderedItems.find((x) => {
-                const itemRect = x.getBoundingClientRect();
-                const viewportRect = scrollerDiv.getBoundingClientRect();
-                return itemRect.bottom > viewportRect.bottom;
-            });
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(scroller.first).not.toBe(0);
             expect(firstInViewport).toBeTruthy();
@@ -207,12 +178,13 @@ fdescribe('mytest', () => {
         });
 
         it('should scrollToIndex of the middle item', () => {
-            scroller.scrollToIndex(component.items.length / 2);
+            const itemIdx = component.items.length / 2;
+            scroller.scrollToIndex(itemIdx);
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
-            expect(firstInViewport).toBeTruthy();
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
         });
 
@@ -220,7 +192,6 @@ fdescribe('mytest', () => {
             scroller.scrollTo({ top: scrollerDiv.scrollHeight / 2 });
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            console.log('SCROLL TOP TEST', scrollerDiv.scrollTop);
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(firstInViewport).toBeTruthy();
@@ -235,6 +206,68 @@ fdescribe('mytest', () => {
 
             expect(firstInViewport).toBeTruthy();
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
+        });
+
+        it('should expand first item', () => {
+            const { firstInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+            firstInViewport.click();
+
+            expect(firstInViewport.offsetHeight).toBe(100);
+        });
+
+        it('should expand first 5 items and scrollTo the middle', () => {
+            expandInViewport(5, fixture);
+            scroller.scrollTo({ top: scrollerDiv.scrollHeight / 2 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport).toBeTruthy();
+        });
+
+        it('should expand first 5 items and scrollTo the bottom', () => {
+            expandInViewport(5, fixture);
+            scroller.scrollTo({ top: scrollerDiv.scrollHeight });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
+        });
+
+        it('should expand first 5 items and scrollToIndex of the middle item', () => {
+            expandInViewport(5, fixture);
+            const itemIdx = component.items.length / 2;
+            scroller.scrollToIndex(itemIdx);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
+            expect(lastInViewport).toBeTruthy();
+        });
+
+        it('should expand first 5 items and scrollToIndex of the last item', () => {
+            expandInViewport(5, fixture);
+            scroller.scrollToIndex(component.items.length - 1);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
+        });
+
+        it('smooth scrolling test to the middle', () => {
+            scroller.scrollToIndex(component.items.length / 2, 'smooth');
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport).toBeTruthy();
         });
     });
 
