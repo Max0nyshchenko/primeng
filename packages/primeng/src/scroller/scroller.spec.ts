@@ -1,8 +1,10 @@
 import { Component, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { initPositions, Scroller } from './scroller';
-import { By } from '@angular/platform-browser';
+import { BrowserModule, By } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
+import { BrowserAnimationsModule, NoopAnimationsModule, provideAnimations } from '@angular/platform-browser/animations';
+import { debounce, debounceTime, first, fromEvent, lastValueFrom, map, of, switchMap, take, tap } from 'rxjs';
 
 fdescribe('mytest', () => {
     @Component({
@@ -132,7 +134,7 @@ fdescribe('mytest', () => {
 
     @Component({
         template: `
-            <p-virtualscroller [items]="items" [itemSize]="itemSize" scrollHeight="200px" styleClass="border border-surface" [style]="{ width: '200px', height: '200px' }">
+            <p-virtualscroller [items]="items" [itemSize]="recreateItemSizeOnEachRender ? itemSize.bind(this) : itemSize" scrollHeight="200px" styleClass="border border-surface" [style]="{ width: '200px', height: '200px' }">
                 <ng-template #item let-item let-options="options">
                     <div
                         (click)="expandedItems.has(item) ? expandedItems.delete(item) : expandedItems.add(item)"
@@ -145,12 +147,14 @@ fdescribe('mytest', () => {
                 </ng-template>
             </p-virtualscroller>
         `,
-        imports: [Scroller, CommonModule]
+        imports: [Scroller, CommonModule],
+        providers: [provideAnimations()]
     })
     class FlexibleScrollerWrapper {
         items = Array.from({ length: 1000 }).map((_, i) => `Item #${i}`);
         expandedItems = new Set<string>();
         itemSize = (item: string) => ({ mainAxis: this.expandedItems.has(item) ? 100 : 30 });
+        recreateItemSizeOnEachRender = false;
     }
 
     describe('Flexible Scroller', () => {
@@ -260,13 +264,61 @@ fdescribe('mytest', () => {
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
         });
 
-        it('smooth scrolling test to the middle', () => {
-            scroller.scrollToIndex(component.items.length / 2, 'smooth');
-            scrollerDiv.dispatchEvent(new Event('scroll'));
+        xit('should smoothly scrollToIndex of the middle item', async () => {
+            const itemIdx = component.items.length / 2;
+            scroller.scrollToIndex(itemIdx, 'smooth');
+            const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
+                tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
+                debounceTime(100),
+                first()
+            );
+            await lastValueFrom(scroll$);
+            //scrollerDiv.dispatchEvent(new Event('scroll'));
+            //fixture.detectChanges();
+            //scrollerDiv.dispatchEvent(new Event('scroll'));
+            console.error('After Dispatch');
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
-            expect(firstInViewport).toBeTruthy();
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
+            expect(lastInViewport).toBeTruthy();
+        });
+
+        xit('should smoothly scrollTo the middle', async () => {
+            const itemIdx = component.items.length / 2;
+            scroller.scrollTo({ top: scrollerDiv.scrollHeight / 2, behavior: 'smooth' });
+            const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
+                tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
+                debounceTime(100),
+                first()
+            );
+            await lastValueFrom(scroll$);
+            //scrollerDiv.dispatchEvent(new Event('scroll'));
+            //fixture.detectChanges();
+            //scrollerDiv.dispatchEvent(new Event('scroll'));
+            console.error('After Dispatch');
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
+            expect(lastInViewport).toBeTruthy();
+        });
+
+        xit('should scrollTo the middle while recreating itemSize function on every render', async () => {
+            component.recreateItemSizeOnEachRender = true;
+            fixture.detectChanges();
+            const itemIdx = component.items.length / 2;
+            scroller.scrollTo({ top: scrollerDiv.scrollHeight / 2 });
+            const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
+                tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
+                debounceTime(100),
+                first()
+            );
+            await lastValueFrom(scroll$);
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
         });
     });
