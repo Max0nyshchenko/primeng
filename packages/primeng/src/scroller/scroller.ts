@@ -796,7 +796,8 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
         if (valid) {
             const first = this.first;
             const { scrollTop = 0, scrollLeft = 0 } = this.elementViewChild?.nativeElement;
-            const { numToleratedItems } = this.calculateNumItems();
+            //const { numToleratedItems } = this.calculateNumItems();
+            const { tolerated: numToleratedItems } = this._poss.numsInViewport();
             const contentPos = this.getContentPosition();
             const calculateFirst = (_index = 0, _numT) => (_index <= _numT ? 0 : _index);
             const scrollTo = (left = 0, top = 0) => this.scrollTo({ left, top, behavior });
@@ -906,27 +907,14 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
         };
     }
 
-    calculateNumItems() {
-        const contentPos = this.getContentPosition();
-        const contentWidth = (this.elementViewChild?.nativeElement ? this.elementViewChild.nativeElement.clientWidth - contentPos.left : 0) || 0;
-        const contentHeight = (this.elementViewChild?.nativeElement ? this.elementViewChild.nativeElement.clientHeight - contentPos.top : 0) || 0;
-        const calculateNumToleratedItems = (_numItems: number) => Math.ceil(_numItems / 2);
-        const { scrollTop, scrollLeft } = this.elementViewChild?.nativeElement || { scrollTop: 0, scrollLeft: 0 };
-        const numItemsInViewport: any = this.both ? this.getNumItemsInViewport(contentHeight, scrollTop, contentWidth, scrollLeft) : this._poss.numsInViewport().num;
-
-        const numToleratedItems = this.d_numToleratedItems || (this.both ? [calculateNumToleratedItems(numItemsInViewport.rows), calculateNumToleratedItems(numItemsInViewport.cols)] : calculateNumToleratedItems(numItemsInViewport));
-
-        return { numItemsInViewport, numToleratedItems };
-    }
-
     calculateOptions() {
-        const { numItemsInViewport, numToleratedItems } = this.calculateNumItems();
+        const { num: numItemsInViewport, tolerated: numToleratedItems } = this._poss.numsInViewport();
         const calculateLast = (_first: number, _num: number, _numT: number, _isCols: boolean = false) => this.getLast(_first + _num + (_first < _numT ? 2 : 3) * _numT, _isCols);
         const first = this.first;
         const last = this.both
             ? {
-                  rows: calculateLast(this.first.rows, numItemsInViewport.rows, numToleratedItems[0]),
-                  cols: calculateLast(this.first.cols, numItemsInViewport.cols, numToleratedItems[1], true)
+                  rows: calculateLast(this.first.rows, numItemsInViewport, numToleratedItems[0]),
+                  cols: calculateLast(this.first.cols, numItemsInViewport, numToleratedItems[1], true)
               }
             : calculateLast(this.first, numItemsInViewport, numToleratedItems);
 
@@ -935,7 +923,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
         this.d_numToleratedItems = numToleratedItems;
 
         if (this.showLoader) {
-            this.loaderArr = this.both ? Array.from({ length: numItemsInViewport.rows }).map(() => Array.from({ length: numItemsInViewport.cols })) : Array.from({ length: numItemsInViewport });
+            this.loaderArr = this.both ? Array.from({ length: numItemsInViewport }).map(() => Array.from({ length: numItemsInViewport })) : Array.from({ length: numItemsInViewport });
         }
 
         if (this._lazy) {
@@ -1032,7 +1020,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 setTransform(this._itemsPositions.crossAxis[first.cols].pos + jump.cols, this._itemsPositions.mainAxis[first.rows].pos + jump.rows);
             } else {
                 //const jj = this._poss.updateByIndexWithChanges(first);
-                const translateVal = this._poss.at(first).pos;
+                const translateVal = this._poss.positions.at(first).pos;
                 this.horizontal ? setTransform(translateVal, 0) : setTransform(0, translateVal);
             }
         }
@@ -1109,11 +1097,12 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             if (!this._appendOnly || (this._appendOnly && isScrollDownOrRight)) {
                 const calculateScrolledIdx = (idx: number) => (idx > this._itemsPositions.mainAxis.length - this.numItemsInViewport ? this._itemsPositions.mainAxis.length - this.numItemsInViewport : idx);
                 //const currentIndex = this.scrolledIndex !== undefined ? calculateScrolledIdx(this.scrolledIndex) : this.getFirstInViewport(scrollPos);
-                const currentIndex = this._poss.numsInViewport().first;
-                const triggerIndex = calculateTriggerIndex(currentIndex, this.first, this.last, this.numItemsInViewport, this.d_numToleratedItems, isScrollDownOrRight, false);
+                const viewport = this._poss.numsInViewport();
+                const currentIndex = viewport.first;
+                const triggerIndex = calculateTriggerIndex(currentIndex, this.first, this.last, viewport.num, viewport.tolerated, isScrollDownOrRight, false);
 
-                newFirst = calculateFirst(currentIndex, triggerIndex, this.first, this.last, this.numItemsInViewport, this.d_numToleratedItems, isScrollDownOrRight);
-                newLast = calculateLast(currentIndex, newFirst, this.last, this.numItemsInViewport, this.d_numToleratedItems);
+                newFirst = calculateFirst(currentIndex, triggerIndex, this.first, this.last, viewport.num, viewport.tolerated, isScrollDownOrRight);
+                newLast = calculateLast(currentIndex, newFirst, this.last, viewport.num, viewport.tolerated);
                 isRangeChanged = newFirst !== this.first || newLast !== this.last || this.isRangeChanged;
                 newScrollPos = scrollPos;
                 this.scrolledIndex = undefined;
@@ -1504,6 +1493,22 @@ export const mergePositions = (positions: ItemPos[], positionsToMerge: ItemPos[]
     return resPositions;
 };
 
+export const binarySearchFirst = (pos: number, positions: ItemPos[]): number => {
+    let left = 0,
+        right = positions.length,
+        prevMiddle = 0;
+    while (true) {
+        const middle = Math.floor((left + right) / 2);
+        const currPos = positions[middle];
+        const nextPos = positions[middle + 1];
+
+        if (currPos === undefined || nextPos === undefined || currPos.pos === pos || (currPos.pos < pos && nextPos.pos > pos) || middle === prevMiddle) return middle;
+        if (pos < currPos.pos) right = middle;
+        else left = middle;
+        prevMiddle = middle;
+    }
+};
+
 export const initPositions = <T>({
     items,
     getItemSize,
@@ -1522,22 +1527,6 @@ export const initPositions = <T>({
     onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
 }) => {
     const positions = getInitPositions(items);
-
-    const binarySearchFirst = (pos: number, positions: ItemPos[]): number => {
-        let left = 0,
-            right = positions.length,
-            prevMiddle = 0;
-        while (true) {
-            const middle = Math.floor((left + right) / 2);
-            const currPos = positions[middle];
-            const nextPos = positions[middle + 1];
-
-            if (currPos === undefined || nextPos === undefined || currPos.pos === pos || (currPos.pos < pos && nextPos.pos > pos) || middle === prevMiddle) return middle;
-            if (pos < currPos.pos) right = middle;
-            else left = middle;
-            prevMiddle = middle;
-        }
-    };
 
     const updateByIndex = (index: number) => {
         const cache = new Map<number, number>(),
@@ -1620,21 +1609,21 @@ export const initPositions = <T>({
         //return binarySearchFirst(startPos + viewportSize, positions) - binarySearchFirst(startPos, positions) + 1;
         const first = binarySearchFirst(scrollerEl.scrollTop, positions);
         const last = binarySearchFirst(scrollerEl.scrollTop + viewportSize, positions);
-        return { first, last, num: last - first + 1 };
+        const num = last - first + 1;
+        return { first, last, num, tolerated: Math.ceil(num / 2) };
     };
 
     const totalSize = () => positions.at(-1).pos + positions.at(-1).size;
 
-    if (positions.length) {
-        const idx = binarySearchFirst(scrollerEl.scrollTop, positions);
-        setOfCalculatedIndexes.add(idx);
-        updateByIndex(idx);
-    }
+    //if (positions.length) {
+    //    const idx = binarySearchFirst(scrollerEl.scrollTop, positions);
+    //    setOfCalculatedIndexes.add(idx);
+    //    updateByIndex(idx);
+    //}
 
     return {
         positions,
         updateByIndex,
-        updateByIndexWithChanges,
         updateByScrollPos,
         numsInViewport,
         at,

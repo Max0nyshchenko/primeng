@@ -1,6 +1,6 @@
 import { Component, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { initPositions, Scroller } from './scroller';
+import { binarySearchFirst, initPositions, Scroller } from './scroller';
 import { BrowserModule, By } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 import { BrowserAnimationsModule, NoopAnimationsModule, provideAnimations } from '@angular/platform-browser/animations';
@@ -151,7 +151,7 @@ fdescribe('mytest', () => {
         providers: [provideAnimations()]
     })
     class FlexibleScrollerWrapper {
-        items = Array.from({ length: 100 }).map((_, i) => `Item #${i}`);
+        items = Array.from({ length: 1000 }).map((_, i) => `Item #${i}`);
         expandedItems = new Set<string>();
         itemSize = (item: string) => ({ mainAxis: this.expandedItems.has(item) ? 100 : 30 });
         recreateItemSizeOnEachRender = false;
@@ -264,7 +264,7 @@ fdescribe('mytest', () => {
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
         });
 
-        xit('should smoothly scrollToIndex of the middle item', async () => {
+        it('should smoothly scrollToIndex of the middle item', async () => {
             const itemIdx = component.items.length / 2;
             scroller.scrollToIndex(itemIdx, 'smooth');
             const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
@@ -273,10 +273,6 @@ fdescribe('mytest', () => {
                 first()
             );
             await lastValueFrom(scroll$);
-            //scrollerDiv.dispatchEvent(new Event('scroll'));
-            //fixture.detectChanges();
-            //scrollerDiv.dispatchEvent(new Event('scroll'));
-            console.error('After Dispatch');
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
@@ -284,19 +280,16 @@ fdescribe('mytest', () => {
             expect(lastInViewport).toBeTruthy();
         });
 
-        xit('should smoothly scrollTo the middle', async () => {
-            const itemIdx = component.items.length / 2;
-            scroller.scrollTo({ top: scrollerDiv.scrollHeight / 2, behavior: 'smooth' });
+        it('should smoothly scrollTo the middle', async () => {
+            const scrollTo = scrollerDiv.scrollHeight / 2;
+            scroller.scrollTo({ top: scrollTo, behavior: 'smooth' });
             const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
                 tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
                 debounceTime(100),
                 first()
             );
             await lastValueFrom(scroll$);
-            //scrollerDiv.dispatchEvent(new Event('scroll'));
-            //fixture.detectChanges();
-            //scrollerDiv.dispatchEvent(new Event('scroll'));
-            console.error('After Dispatch');
+            const itemIdx = binarySearchFirst(scrollTo, scroller._poss.positions);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
@@ -304,29 +297,42 @@ fdescribe('mytest', () => {
             expect(lastInViewport).toBeTruthy();
         });
 
-        xit('should scrollTo the middle while recreating itemSize function on every render', async () => {
+        it('should scrollTo the middle while recreating itemSize function on every render', async () => {
             component.recreateItemSizeOnEachRender = true;
             fixture.detectChanges();
-            const itemIdx = component.items.length / 2;
-            scroller.scrollTo({ top: scrollerDiv.scrollHeight / 2 });
+            const scrollPos = scrollerDiv.scrollHeight / 2;
+            scroller.scrollTo({ top: scrollPos });
             const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
                 tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
                 debounceTime(100),
                 first()
             );
             await lastValueFrom(scroll$);
+            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
+        });
 
-            // issues here
-            // we scroll the first time, calculate the segment based on first in viewport
-            // we then set content based on first outside of viewport
-            // between these calls we have jumps calculations
-            // jumps then trigger new scrolls, but that way in 3 cycles or so we would stop
-            // then we initialize new positions on each render and after few renders it should work
+        fit('should smoothly scrollTo the middle while recreating itemSize function on every render', async () => {
+            component.recreateItemSizeOnEachRender = true;
+            fixture.detectChanges();
+            const scrollPos = scrollerDiv.scrollHeight / 2;
+            scroller.scrollTo({ top: scrollPos, behavior: 'smooth' });
+            const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
+                tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
+                debounceTime(100),
+                first()
+            );
+            await lastValueFrom(scroll$);
+            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions);
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
+            expect(lastInViewport).toBeTruthy();
         });
     });
 
