@@ -151,7 +151,7 @@ fdescribe('mytest', () => {
         providers: [provideAnimations()]
     })
     class FlexibleScrollerWrapper {
-        items = Array.from({ length: 1000 }).map((_, i) => `Item #${i}`);
+        items = Array.from({ length: 100 }).map((_, i) => `Item #${i}`);
         expandedItems = new Set<string>();
         itemSize = (item: string) => ({ mainAxis: this.expandedItems.has(item) ? 100 : 30 });
         recreateItemSizeOnEachRender = false;
@@ -320,13 +320,20 @@ fdescribe('mytest', () => {
 
             expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
+
+            // issues here
+            // we scroll the first time, calculate the segment based on first in viewport
+            // we then set content based on first outside of viewport
+            // between these calls we have jumps calculations
+            // jumps then trigger new scrolls, but that way in 3 cycles or so we would stop
+            // then we initialize new positions on each render and after few renders it should work
         });
     });
 
     describe('initPositions', () => {
         const getItems = (len: number = 5) => Array.from({ length: len }, (_, idx) => `Item #${idx}`);
         it('should create positions with default values', () => {
-            const positions = initPositions({ items: getItems(), getItemSize: () => 50, viewportSize: 200 });
+            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
 
             expect(positions.positions).toEqual([
                 { size: 40, pos: 0 },
@@ -338,7 +345,7 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate real positions', () => {
-            const positions = initPositions({ items: getItems(), getItemSize: () => 50, viewportSize: 200 });
+            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
             positions.updateByIndex(-1);
 
             expect(positions.positions).toEqual([
@@ -351,7 +358,7 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate real positions and adjust leftover positions from top down', () => {
-            const positions = initPositions({ items: getItems(), getItemSize: () => 200, viewportSize: 200 });
+            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
             positions.updateByIndex(1);
 
             expect(positions.positions).toEqual([
@@ -364,7 +371,7 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate real positions and adjust leftover positions from bottom up', () => {
-            const positions = initPositions({ items: getItems(), getItemSize: () => 200, viewportSize: 200 });
+            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
             positions.updateByIndex(-1);
 
             expect(positions.positions).toEqual([
@@ -374,6 +381,29 @@ fdescribe('mytest', () => {
                 { size: 200, pos: 120 },
                 { size: 200, pos: 320 }
             ]);
+        });
+
+        it('should calculate correct jumps', () => {
+            let actualJump: number;
+            const scrollerEl = { scrollTop: 0 };
+            const positions = initPositions({ items: getItems(100), scrollerEl, getItemSize: () => 200, viewportSize: 200, onChange: ({ jump }) => (actualJump = jump) });
+            const itemIdx = 50;
+            const positionBefore = positions.positions.at(itemIdx).pos;
+            scrollerEl.scrollTop = positionBefore;
+            positions.at(25);
+            const expectedJump = positions.positions.at(itemIdx).pos - positionBefore;
+
+            expect(actualJump).toBe(expectedJump);
+        });
+
+        it('should be pure', () => {
+            const positions = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            const positions2 = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            const idx = 25;
+            positions.at(idx);
+            positions2.at(idx);
+
+            expect(positions.positions).toEqual(positions2.positions);
         });
     });
 });

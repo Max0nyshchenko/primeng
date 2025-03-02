@@ -428,6 +428,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
 
     _poss: ReturnType<typeof initPositions> = initPositions({
         getItemSize: () => 0,
+        scrollerEl: { scrollTop: 0 },
         items: [],
         viewportSize: 0
     });
@@ -713,27 +714,32 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 items: this.items,
                 viewportSize: this.orientation === 'horizontal' ? this.elementViewChild?.nativeElement.offsetWidth || 0 : this.elementViewChild?.nativeElement.offsetHeight || 0,
                 getItemSize: (item, idx) => this._getItemSize(item, idx, 0).mainAxis,
+                scrollerEl: this.elementViewChild.nativeElement,
                 onChange: ({ jump, totalSizeDiff }) => {
                     const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
-                    console.error('onChange initPositions', { totalSizeDiff, scrollTop, jump });
+
+                    if (this.count < 100) {
+                        this.count++;
+                        console.error({ scrollTop, jump, totalSizeDiff });
+                    }
+
                     if (totalSizeDiff) {
                         this.setSpacerSize();
                         this.cd.detectChanges();
                     }
                     if (jump) {
                         this.scrollTo({ top: scrollTop + jump });
+                        //this.onScrollPositionChange({scrollLeft: 0, scrollTop: Math.max(0, scrollTop + jump)})
                         this.cd.detectChanges();
                     }
                 }
                 //onTotalSizeChanged: (spacerSizeDiff: number) => {
                 //    const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
-                //    console.error('onTotalSizeChanged', { spacerSizeDiff, scrollTop });
                 //    this.setSpacerSize();
                 //    this.cd.detectChanges();
                 //},
                 //onJump: (jump) => {
                 //    const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
-                //    console.error('onJump', { jump, scrollTop });
                 //    this.scrollTo({ top: scrollTop + jump });
                 //    this.cd.detectChanges();
                 //}
@@ -776,6 +782,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
         return this._step ? this.page !== this.getPageByFirst(first ?? this.first) : true;
     }
 
+    private count = 0;
     scrollTo(options: ScrollToOptions) {
         // this.lastScrollPos = this.both ? { top: 0, left: 0 } : 0;
         if (typeof options.top === 'number') this._poss.updateByScrollPos(options.top);
@@ -811,24 +818,8 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 //const mergeIdx = Math.max(0, (index as number) - 100);
                 //const calculatedPos = calculatePositions(this._items.slice(mergeIdx, Math.min(this._items.length, (index as number) + 100)), (item, i, j) => this._getItemSize(item, i, j).mainAxis);
                 //this._itemsPositions.mainAxis = mergePositions(this._itemsPositions.mainAxis, calculatedPos, mergeIdx);
-                console.error('scrollToIndex before', {
-                    999: this._poss.positions.at(999),
-                    index,
-                    scrollHeight: this.elementViewChild.nativeElement.scrollHeight,
-                    scrollTop: this.elementViewChild.nativeElement.scrollTop,
-                    contentPos: JSON.parse(JSON.stringify(contentPos))
-                });
                 const pos = this._poss.at(index as number);
                 this.horizontal ? scrollTo(pos.pos + contentPos.left, scrollTop) : scrollTo(scrollLeft, pos.pos + contentPos.top);
-                console.error('scrollToIndex after', {
-                    999: this._poss.positions.at(999),
-                    index,
-                    pos,
-                    scrollHeight: this.elementViewChild.nativeElement.scrollHeight,
-                    scrollTop: this.elementViewChild.nativeElement.scrollTop,
-                    contentPos: JSON.parse(JSON.stringify(contentPos)),
-                    res: pos.pos + contentPos.top
-                });
                 isScrollChanged = this.lastScrollPos !== (this.horizontal ? scrollLeft : scrollTop);
                 isRangeChanged = newFirst !== first;
             }
@@ -899,8 +890,9 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 lastInViewport = { rows: firstInViewport.rows + this.numItemsInViewport.rows, cols: firstInViewport.cols + this.numItemsInViewport.cols };
             } else {
                 const scrollPos = this.horizontal ? scrollLeft : scrollTop;
-                firstInViewport = this._poss.findByPos(scrollPos);
-                lastInViewport = firstInViewport + this._poss.numsInViewport(scrollPos);
+                const viewport = this._poss.numsInViewport();
+                firstInViewport = viewport.first;
+                lastInViewport = viewport.last;
             }
         }
 
@@ -920,7 +912,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
         const contentHeight = (this.elementViewChild?.nativeElement ? this.elementViewChild.nativeElement.clientHeight - contentPos.top : 0) || 0;
         const calculateNumToleratedItems = (_numItems: number) => Math.ceil(_numItems / 2);
         const { scrollTop, scrollLeft } = this.elementViewChild?.nativeElement || { scrollTop: 0, scrollLeft: 0 };
-        const numItemsInViewport: any = this.both ? this.getNumItemsInViewport(contentHeight, scrollTop, contentWidth, scrollLeft) : this._poss.numsInViewport(this.horizontal ? scrollLeft : scrollTop);
+        const numItemsInViewport: any = this.both ? this.getNumItemsInViewport(contentHeight, scrollTop, contentWidth, scrollLeft) : this._poss.numsInViewport().num;
 
         const numToleratedItems = this.d_numToleratedItems || (this.both ? [calculateNumToleratedItems(numItemsInViewport.rows), calculateNumToleratedItems(numItemsInViewport.cols)] : calculateNumToleratedItems(numItemsInViewport));
 
@@ -1039,17 +1031,15 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             if (this.both) {
                 setTransform(this._itemsPositions.crossAxis[first.cols].pos + jump.cols, this._itemsPositions.mainAxis[first.rows].pos + jump.rows);
             } else {
-                console.error('setContentPositions before', { first, scrollHeight: this.elementViewChild.nativeElement.scrollHeight });
-                const translateVal = this._poss.at(first).pos + jump.rows;
-                console.error('setContentPositions after', { first, scrollHeight: this.elementViewChild.nativeElement.scrollHeight });
+                //const jj = this._poss.updateByIndexWithChanges(first);
+                const translateVal = this._poss.at(first).pos;
                 this.horizontal ? setTransform(translateVal, 0) : setTransform(0, translateVal);
             }
         }
     }
 
-    onScrollPositionChange(event: Event) {
+    onScrollPositionChange(event: { scrollTop: number; scrollLeft: number }) {
         const { height: spacerHeight, width: spacerWidth } = this.spacerStyle;
-        const target = event.target;
         const contentPos = this.getContentPosition();
         const calculateScrollPos = (_pos: number, _cpos: number) => (_pos ? (_pos > _cpos ? _pos - _cpos : _pos) : 0);
         const calculateTriggerIndex = (_currentIndex: number, _first: number, _last: number, _num: number, _numT: number, _isScrollDownOrRight: boolean, _isJump: boolean) => {
@@ -1070,8 +1060,8 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             return this.getLast(lastValue, _isCols);
         };
 
-        const scrollTop = calculateScrollPos((<HTMLElement>target).scrollTop, contentPos.top);
-        const scrollLeft = calculateScrollPos((<HTMLElement>target).scrollLeft, contentPos.left);
+        const scrollTop = calculateScrollPos(event.scrollTop, contentPos.top);
+        const scrollLeft = calculateScrollPos(event.scrollLeft, contentPos.left);
         const scrollTo = (left = 0, top = 0) => this.scrollTo({ left, top, behavior: 'auto' });
 
         let newFirst = this.both ? { rows: 0, cols: 0 } : 0;
@@ -1119,9 +1109,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             if (!this._appendOnly || (this._appendOnly && isScrollDownOrRight)) {
                 const calculateScrolledIdx = (idx: number) => (idx > this._itemsPositions.mainAxis.length - this.numItemsInViewport ? this._itemsPositions.mainAxis.length - this.numItemsInViewport : idx);
                 //const currentIndex = this.scrolledIndex !== undefined ? calculateScrolledIdx(this.scrolledIndex) : this.getFirstInViewport(scrollPos);
-                console.error('onScrollPositionChange before', { scrollPos, poss: JSON.parse(JSON.stringify(this._poss.positions)) });
-                const currentIndex = this._poss.findByPos(scrollPos);
-                console.error('onScrollPositionChange after', { scrollPos, currentIndex, [currentIndex]: this._poss.positions.at(currentIndex), poss: JSON.parse(JSON.stringify(this._poss.positions)) });
+                const currentIndex = this._poss.numsInViewport().first;
                 const triggerIndex = calculateTriggerIndex(currentIndex, this.first, this.last, this.numItemsInViewport, this.d_numToleratedItems, isScrollDownOrRight, false);
 
                 newFirst = calculateFirst(currentIndex, triggerIndex, this.first, this.last, this.numItemsInViewport, this.d_numToleratedItems, isScrollDownOrRight);
@@ -1142,7 +1130,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
     }
 
     onScrollChange(event: Event) {
-        const { first, last, isRangeChanged, scrollPos, jump } = this.onScrollPositionChange(event);
+        const { first, last, isRangeChanged, scrollPos, jump } = this.onScrollPositionChange({ scrollTop: (<HTMLElement>event.target).scrollTop, scrollLeft: (<HTMLElement>event.target).scrollLeft });
 
         if (isRangeChanged) {
             const newState = { first, last };
@@ -1177,7 +1165,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             }
 
             if (!this.d_loading && this.showLoader) {
-                const { isRangeChanged } = this.onScrollPositionChange(event);
+                const { isRangeChanged } = this.onScrollPositionChange({ scrollTop: (<HTMLElement>event.target).scrollTop, scrollLeft: (<HTMLElement>event.target).scrollLeft });
                 const changed = isRangeChanged || (this._step ? this.isPageChanged() : false);
 
                 if (changed) {
@@ -1520,6 +1508,7 @@ export const initPositions = <T>({
     items,
     getItemSize,
     viewportSize,
+    scrollerEl,
     onTotalSizeChanged = () => {},
     onJump = () => {},
     onChange = () => {}
@@ -1527,6 +1516,7 @@ export const initPositions = <T>({
     items: T[];
     getItemSize: (item: T, idx: number) => number;
     viewportSize: number;
+    scrollerEl: { scrollTop: number };
     onTotalSizeChanged?: (totalSizeDiff: number) => void;
     onJump?: (jump: number) => void;
     onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
@@ -1577,15 +1567,34 @@ export const initPositions = <T>({
         }
     };
 
-    const updateByIndexWithEvents = (index: number) => {
+    const setOfCalculatedIndexes = new Set<number>();
+
+    let count = 0;
+    const updateByIndexWithChanges = (index: number) => {
+        //if (count < 100) {
+        //    count++;
+        //    console.error('updateByIndexWithEvents before', { positions: JSON.parse(JSON.stringify(positions)), scrollTop: scrollerEl.scrollTop });
+        //}
+        if (setOfCalculatedIndexes.has(index)) return { jump: 0, totalSizeDiff: 0 };
+        setOfCalculatedIndexes.add(index);
+        const firstInViewportIdx = binarySearchFirst(scrollerEl.scrollTop, positions);
+        const initFirstInViewportPos = positions.at(firstInViewportIdx).pos;
         const initTotalSize = totalSize();
-        const initIndexPos = positions.at(index).pos;
 
         updateByIndex(index);
+        //if (count < 100) {
+        //    count++;
+        //    console.error('updateByIndexWithEvents after', { positions: JSON.parse(JSON.stringify(positions)) });
+        //}
 
         const totalSizeDiff = totalSize() - initTotalSize;
-        const jump = positions.at(index).pos - initIndexPos;
-        console.log('updateByIndexWithEvents', { initIndexPos, index, finalIndexPos: positions.at(index).pos });
+        const jump = positions.at(firstInViewportIdx).pos - initFirstInViewportPos;
+        console.error('totalsizediff', { totalSizeDiff, jump });
+        return { jump, totalSizeDiff };
+    };
+
+    const updateByIndexWithEvents = (index: number) => {
+        const { totalSizeDiff, jump } = updateByIndexWithChanges(index);
         if (totalSizeDiff !== 0) onTotalSizeChanged(totalSizeDiff);
         if (jump !== 0) onJump(jump);
         if (jump !== 0 || totalSizeDiff !== 0) onChange({ jump, totalSizeDiff });
@@ -1606,20 +1615,29 @@ export const initPositions = <T>({
         return positions.at(index);
     };
 
-    const numsInViewport = (startPos: number) => {
-        updateByScrollPos(startPos);
-        return binarySearchFirst(startPos + viewportSize, positions) - binarySearchFirst(startPos, positions) + 1;
+    const numsInViewport = () => {
+        //updateByScrollPos(startPos);
+        //return binarySearchFirst(startPos + viewportSize, positions) - binarySearchFirst(startPos, positions) + 1;
+        const first = binarySearchFirst(scrollerEl.scrollTop, positions);
+        const last = binarySearchFirst(scrollerEl.scrollTop + viewportSize, positions);
+        return { first, last, num: last - first + 1 };
     };
 
     const totalSize = () => positions.at(-1).pos + positions.at(-1).size;
 
+    if (positions.length) {
+        const idx = binarySearchFirst(scrollerEl.scrollTop, positions);
+        setOfCalculatedIndexes.add(idx);
+        updateByIndex(idx);
+    }
+
     return {
         positions,
         updateByIndex,
+        updateByIndexWithChanges,
         updateByScrollPos,
         numsInViewport,
         at,
-        findByPos,
         totalSize
     };
 };
