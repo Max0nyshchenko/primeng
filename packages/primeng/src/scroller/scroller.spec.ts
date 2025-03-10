@@ -316,7 +316,7 @@ fdescribe('mytest', () => {
             expect(lastInViewport).toBeTruthy();
         });
 
-        fit('should smoothly scrollTo the middle while recreating itemSize function on every render', async () => {
+        it('should smoothly scrollTo the middle while recreating itemSize function on every render', async () => {
             component.recreateItemSizeOnEachRender = true;
             fixture.detectChanges();
             const scrollPos = scrollerDiv.scrollHeight / 2;
@@ -338,28 +338,56 @@ fdescribe('mytest', () => {
 
     describe('initPositions', () => {
         const getItems = (len: number = 5) => Array.from({ length: len }, (_, idx) => `Item #${idx}`);
-        it('should create positions with default values', () => {
-            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
-
-            expect(positions.positions).toEqual([
-                { size: 40, pos: 0 },
-                { size: 40, pos: 40 },
-                { size: 40, pos: 80 },
-                { size: 40, pos: 120 },
-                { size: 40, pos: 160 }
-            ]);
-        });
-
-        it('should calculate real positions', () => {
-            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
-            positions.updateByIndex(-1);
+        it('should create positions', () => {
+            const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
 
             expect(positions.positions).toEqual([
                 { size: 50, pos: 0 },
                 { size: 50, pos: 50 },
                 { size: 50, pos: 100 },
                 { size: 50, pos: 150 },
-                { size: 50, pos: 200 }
+                { size: 50, pos: 200 },
+                { size: 50, pos: 250 },
+                { size: 50, pos: 300 },
+                { size: 50, pos: 350 },
+                { size: 40, pos: 400 },
+                { size: 40, pos: 440 }
+            ]);
+        });
+
+        it('should calculate positions at the bottom', () => {
+            const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            positions.updateByIndex(-1);
+
+            expect(positions.positions).toEqual([
+                { size: 200, pos: 0 },
+                { size: 200, pos: 200 },
+                { size: 40, pos: 400 },
+                { size: 40, pos: 440 },
+                { size: 40, pos: 480 },
+                { size: 40, pos: 520 },
+                { size: 40, pos: 560 },
+                { size: 40, pos: 600 },
+                { size: 200, pos: 640 },
+                { size: 200, pos: 840 }
+            ]);
+        });
+
+        it('should calculate positions at the middle', () => {
+            const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            positions.updateByIndex(4);
+
+            expect(positions.positions).toEqual([
+                { size: 200, pos: 0 },
+                { size: 200, pos: 200 },
+                { size: 40, pos: 400 },
+                { size: 200, pos: 440 },
+                { size: 200, pos: 640 },
+                { size: 200, pos: 840 },
+                { size: 40, pos: 1040 },
+                { size: 40, pos: 1080 },
+                { size: 40, pos: 1120 },
+                { size: 40, pos: 1160 }
             ]);
         });
 
@@ -370,9 +398,9 @@ fdescribe('mytest', () => {
             expect(positions.positions).toEqual([
                 { size: 200, pos: 0 },
                 { size: 200, pos: 200 },
-                { size: 200, pos: 400 },
-                { size: 40, pos: 600 },
-                { size: 40, pos: 640 }
+                { size: 40, pos: 400 },
+                { size: 40, pos: 440 },
+                { size: 40, pos: 480 }
             ]);
         });
 
@@ -381,11 +409,11 @@ fdescribe('mytest', () => {
             positions.updateByIndex(-1);
 
             expect(positions.positions).toEqual([
-                { size: 40, pos: 0 },
-                { size: 40, pos: 40 },
-                { size: 40, pos: 80 },
-                { size: 200, pos: 120 },
-                { size: 200, pos: 320 }
+                { size: 200, pos: 0 },
+                { size: 200, pos: 200 },
+                { size: 40, pos: 400 },
+                { size: 200, pos: 440 },
+                { size: 200, pos: 640 }
             ]);
         });
 

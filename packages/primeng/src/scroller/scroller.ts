@@ -786,6 +786,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
     scrollTo(options: ScrollToOptions) {
         // this.lastScrollPos = this.both ? { top: 0, left: 0 } : 0;
         if (typeof options.top === 'number') this._poss.updateByScrollPos(options.top);
+        console.error('scrollTO:', { ...options, positions: JSON.parse(JSON.stringify(this._poss.positions)), idx: binarySearchFirst(options.top, this._poss.positions) });
         this.elementViewChild?.nativeElement?.scrollTo(options);
     }
 
@@ -1021,6 +1022,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             } else {
                 //const jj = this._poss.updateByIndexWithChanges(first);
                 const translateVal = this._poss.positions.at(first).pos;
+                console.error('setContentPosition', { translateVal, positions: JSON.parse(JSON.stringify(this._poss.positions)) });
                 this.horizontal ? setTransform(translateVal, 0) : setTransform(0, translateVal);
             }
         }
@@ -1101,8 +1103,11 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 const currentIndex = viewport.first;
                 const triggerIndex = calculateTriggerIndex(currentIndex, this.first, this.last, viewport.num, viewport.tolerated, isScrollDownOrRight, false);
 
-                newFirst = calculateFirst(currentIndex, triggerIndex, this.first, this.last, viewport.num, viewport.tolerated, isScrollDownOrRight);
-                newLast = calculateLast(currentIndex, newFirst, this.last, viewport.num, viewport.tolerated);
+                //newFirst = calculateFirst(currentIndex, triggerIndex, this.first, this.last, viewport.num, viewport.tolerated, isScrollDownOrRight);
+                newFirst = this._poss.getFirst(this.first);
+                //newLast = calculateLast(currentIndex, newFirst, this.last, viewport.num, viewport.tolerated);
+                newLast = this._poss.getLast(newFirst) + 1;
+                console.error('onScrollPositionChange', { newFirst, triggerIndex });
                 isRangeChanged = newFirst !== this.first || newLast !== this.last || this.isRangeChanged;
                 newScrollPos = scrollPos;
                 this.scrolledIndex = undefined;
@@ -1529,31 +1534,77 @@ export const initPositions = <T>({
     const positions = getInitPositions(items);
 
     const updateByIndex = (index: number) => {
-        const cache = new Map<number, number>(),
-            currPosItem = positions.at(index),
-            additionalDistance = currPosItem.pos - (positions.slice(index).find((x, idx, arr) => x.pos - currPosItem.pos >= viewportSize || idx === arr.length - 1)?.pos ?? 0) + viewportSize,
-            startPos = Math.max(currPosItem.pos - viewportSize - additionalDistance, 0),
-            endPos = startPos + viewportSize * 3,
-            distanceToPass = currPosItem.pos - startPos;
-        let idx = positions.indexOf(currPosItem),
-            totalPassedDistance = 0;
+        const dtp = viewportSize;
+        const correctIdx = positions.indexOf(positions.at(index));
 
-        while (totalPassedDistance < distanceToPass) {
+        let passed = 0,
+            idx = correctIdx,
+            totalpassed = 0;
+
+        while (passed < dtp + dtp && idx < positions.length) {
             const size = getItemSize(items.at(idx), idx);
-            cache.set(idx, size);
-            totalPassedDistance += size;
-            idx--;
-            if (idx === 0) break;
+            passed += size;
+            totalpassed += size;
+            idx++;
         }
-
+        passed = 0;
+        idx = correctIdx;
+        const additional = viewportSize * 2 - totalpassed;
+        while (passed < dtp + dtp && idx > 0) {
+            const size = getItemSize(items.at(idx), idx);
+            passed += size;
+            if (idx !== correctIdx) totalpassed += size; // cause we already counted correctIdx passed distance in the while loop above
+            if (passed < dtp + dtp) idx--;
+        }
+        passed = 0;
         let currPos = positions.at(idx).pos;
         while (idx < positions.length) {
-            const itemSize = currPos < endPos ? (cache.get(idx) ?? getItemSize(items.at(idx), idx)) : positions.at(idx).size;
+            const itemSize = passed < totalpassed ? getItemSize(items.at(idx), idx) : positions.at(idx).size;
             positions[idx] = { size: itemSize, pos: currPos };
 
             idx++;
             currPos += itemSize;
+            passed += itemSize;
         }
+        console.log({ positions });
+    };
+
+    const upd = (index: number) => {
+        const cache = new Map<number, number>(),
+            currPosItem = positions.at(index),
+            additionalDistance = currPosItem.pos - (positions.slice(index).find((x, idx, arr) => x.pos - currPosItem.pos >= viewportSize || idx === arr.length - 1)?.pos ?? 0) + viewportSize,
+            startPos = Math.max(currPosItem.pos - viewportSize - additionalDistance, 0),
+            endPos = startPos + viewportSize * (currPosItem.pos - startPos < viewportSize ? 2 : 3),
+            distanceToPass = currPosItem.pos - startPos,
+            distToPass = additionalDistance + viewportSize,
+            newDist = distToPass + (additionalDistance ? 0 : viewportSize);
+        let idx = positions.indexOf(currPosItem),
+            totalPassedDistance = 0;
+        console.log({ startPos, distToPass, newDist, endPos, scrollerEl, positions: JSON.parse(JSON.stringify(positions)), index, currPosItem: { ...currPosItem }, additionalDistance, distanceToPass });
+
+        if (distToPass) idx += 1;
+        while (totalPassedDistance < distToPass) {
+            idx--;
+            const size = getItemSize(items.at(idx), idx);
+            cache.set(idx, size);
+            totalPassedDistance += size;
+            //idx--;
+            if (idx === 0) break;
+        }
+
+        let currPos = positions.at(idx).pos,
+            passed = 0;
+        console.log('idx', idx);
+        while (idx < positions.length) {
+            //const itemSize = currPos < endPos ? (cache.get(idx) ?? getItemSize(items.at(idx), idx)) : positions.at(idx).size;
+            const itemSize = passed < newDist ? (cache.get(idx) ?? getItemSize(items.at(idx), idx)) : positions.at(idx).size;
+            positions[idx] = { size: itemSize, pos: currPos };
+
+            idx++;
+            currPos += itemSize;
+            passed += itemSize;
+        }
+        console.log('result positions', JSON.parse(JSON.stringify(positions)));
     };
 
     const setOfCalculatedIndexes = new Set<number>();
@@ -1615,11 +1666,23 @@ export const initPositions = <T>({
 
     const totalSize = () => positions.at(-1).pos + positions.at(-1).size;
 
-    //if (positions.length) {
-    //    const idx = binarySearchFirst(scrollerEl.scrollTop, positions);
-    //    setOfCalculatedIndexes.add(idx);
-    //    updateByIndex(idx);
-    //}
+    const getFirst = (first: number) => {
+        const viewport = numsInViewport();
+        const newFirst = binarySearchFirst(Math.max(scrollerEl.scrollTop - viewportSize, 0), positions);
+
+        return Math.abs(first - newFirst) > viewport.tolerated ? newFirst : first;
+    };
+
+    const getLast = (first: number) => {
+        const firstPos = positions.at(first).pos;
+        return binarySearchFirst(Math.max(firstPos + viewportSize * 3, totalSize()), positions);
+    };
+
+    if (positions.length) {
+        const idx = binarySearchFirst(scrollerEl.scrollTop, positions);
+        setOfCalculatedIndexes.add(idx);
+        updateByIndex(idx);
+    }
 
     return {
         positions,
@@ -1627,7 +1690,9 @@ export const initPositions = <T>({
         updateByScrollPos,
         numsInViewport,
         at,
-        totalSize
+        totalSize,
+        getFirst,
+        getLast
     };
 };
 
