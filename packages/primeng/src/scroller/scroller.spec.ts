@@ -1,6 +1,6 @@
 import { Component, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { binarySearchFirst, initPositions, Scroller } from './scroller';
+import { binarySearchFirst, initGridPositions, initPositions, Scroller } from './scroller';
 import { BrowserModule, By } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 import { BrowserAnimationsModule, NoopAnimationsModule, provideAnimations } from '@angular/platform-browser/animations';
@@ -389,6 +389,144 @@ fdescribe('mytest', () => {
                 { size: 40, pos: 1120 },
                 { size: 40, pos: 1160 }
             ]);
+        });
+
+        it('should calculate real positions and adjust leftover positions from top down', () => {
+            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            positions.updateByIndex(1);
+
+            expect(positions.positions).toEqual([
+                { size: 200, pos: 0 },
+                { size: 200, pos: 200 },
+                { size: 40, pos: 400 },
+                { size: 40, pos: 440 },
+                { size: 40, pos: 480 }
+            ]);
+        });
+
+        it('should calculate real positions and adjust leftover positions from bottom up', () => {
+            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            positions.updateByIndex(-1);
+
+            expect(positions.positions).toEqual([
+                { size: 200, pos: 0 },
+                { size: 200, pos: 200 },
+                { size: 40, pos: 400 },
+                { size: 200, pos: 440 },
+                { size: 200, pos: 640 }
+            ]);
+        });
+
+        it('should calculate correct jumps', () => {
+            let actualJump: number;
+            const scrollerEl = { scrollTop: 0 };
+            const positions = initPositions({ items: getItems(100), scrollerEl, getItemSize: () => 200, viewportSize: 200, onChange: ({ jump }) => (actualJump = jump) });
+            const itemIdx = 50;
+            const positionBefore = positions.positions.at(itemIdx).pos;
+            scrollerEl.scrollTop = positionBefore;
+            positions.at(25);
+            const expectedJump = positions.positions.at(itemIdx).pos - positionBefore;
+
+            expect(actualJump).toBe(expectedJump);
+        });
+
+        it('should be pure', () => {
+            const positions = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            const positions2 = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            const idx = 25;
+            positions.at(idx);
+            positions2.at(idx);
+
+            expect(positions.positions).toEqual(positions2.positions);
+        });
+    });
+
+    describe('initGridPositions', () => {
+        const getItems = (lenMain = 5, lenCross = 5) => Array.from({ length: lenMain }, (_, idx) => Array.from({ length: lenCross }, (_, idxCross) => `Item #${idx}_${idxCross}`));
+        it('should create positions', () => {
+            const { positions } = initGridPositions({ items: getItems(), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 50, cross: 60 }), viewportSize: { main: 100, cross: 100 } });
+            expect(positions).toEqual({
+                mainAxis: [
+                    { size: 50, pos: 0 },
+                    { size: 50, pos: 50 },
+                    { size: 50, pos: 100 },
+                    { size: 50, pos: 150 },
+                    { size: 40, pos: 200 }
+                ],
+                crossAxis: [
+                    { size: 60, pos: 0 },
+                    { size: 60, pos: 60 },
+                    { size: 60, pos: 120 },
+                    { size: 60, pos: 180 },
+                    { size: 40, pos: 240 }
+                ]
+            });
+        });
+
+        it('should calculate positions at the bottom', () => {
+            const { positions, updateByIndex } = initGridPositions({
+                items: getItems(6, 5),
+                scrollerEl: { scrollTop: 340, scrollLeft: 400 },
+                getItemSize: (_, mainIdx, crossIdx) => ({ main: [20, 50, 100][mainIdx % 3], cross: [30, 60, 110][crossIdx % 3] }),
+                viewportSize: { main: 100, cross: 100 }
+            });
+            updateByIndex({ main: -1, cross: -1 });
+
+            console.log({ positions, items: getItems() });
+            expect(positions).toEqual({
+                mainAxis: [
+                    { size: 40, pos: 0 },
+                    { size: 40, pos: 40 },
+                    { size: 100, pos: 80 },
+                    { size: 20, pos: 180 },
+                    { size: 50, pos: 200 },
+                    { size: 100, pos: 250 }
+                ],
+                crossAxis: [
+                    { size: 40, pos: 0 },
+                    { size: 40, pos: 40 },
+                    { size: 110, pos: 80 },
+                    { size: 30, pos: 190 },
+                    { size: 60, pos: 220 }
+                ]
+            });
+        });
+
+        it('should calculate positions at the middle', () => {
+            const { positions, updateByIndex } = initGridPositions({
+                items: getItems(10, 10),
+                scrollerEl: { scrollTop: 340, scrollLeft: 400 },
+                getItemSize: (_, mainIdx, crossIdx) => ({ main: [20, 50, 100][mainIdx % 3], cross: [30, 60, 110][crossIdx % 3] }),
+                viewportSize: { main: 100, cross: 100 }
+            });
+            updateByIndex({ main: 4, cross: 4 });
+
+            expect(positions).toEqual({
+                mainAxis: [
+                    { size: 40, pos: 0 },
+                    { size: 40, pos: 40 },
+                    { size: 40, pos: 80 },
+                    { size: 40, pos: 120 },
+                    { size: 40, pos: 160 },
+                    { size: 40, pos: 200 },
+                    { size: 40, pos: 240 },
+                    { size: 40, pos: 280 },
+                    { size: 40, pos: 320 },
+                    { size: 40, pos: 360 }
+                ],
+                crossAxis: [
+                    { size: 40, pos: 0 },
+                    { size: 40, pos: 40 },
+                    { size: 40, pos: 80 },
+                    { size: 40, pos: 120 },
+                    { size: 40, pos: 160 },
+                    { size: 40, pos: 200 },
+                    { size: 40, pos: 240 },
+                    { size: 40, pos: 280 },
+                    { size: 40, pos: 320 },
+                    { size: 40, pos: 360 }
+                ]
+            });
         });
 
         it('should calculate real positions and adjust leftover positions from top down', () => {

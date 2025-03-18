@@ -1514,6 +1514,156 @@ export const binarySearchFirst = (pos: number, positions: ItemPos[]): number => 
     }
 };
 
+type GridItem = { main: number; cross: number };
+const isGrid = <T>(x: T[] | T[][]): x is T[][] => Array.isArray(x.at(0));
+type InitGridFn = {
+    <T>(x: {
+        items: T[];
+        getItemSize: (item: T, idxMain: number) => number;
+        viewportSize: number;
+        scrollerEl: { scrollTop: number };
+        onTotalSizeChanged?: (totalSizeDiff: number) => void;
+        onJump?: (jump: number) => void;
+        onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
+    }): {
+        positions: ItemPos[];
+    };
+    <T>(x: {
+        items: T[][];
+        getItemSize: (item: T, idxMain: number, idxCross: number) => GridItem;
+        viewportSize: GridItem;
+        scrollerEl: { scrollTop: number; scrollLeft: number };
+        onTotalSizeChanged?: (totalSizeDiff: number) => void;
+        onJump?: (jump: number) => void;
+        onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
+    }): {
+        positions: GridPos;
+    };
+};
+type InitGridPositions<T, Items extends T[][] | T[]> = {
+    positions: Items extends T[][] ? GridPos : ItemPos[];
+    updateByIndex: (idx: Items extends T[][] ? GridItem : number) => void;
+};
+export const initGridPositions = <T, Items extends T[] | T[][]>({
+    items,
+    getItemSize,
+    viewportSize,
+    scrollerEl,
+    onTotalSizeChanged = () => {},
+    onJump = () => {},
+    onChange = () => {}
+}: {
+    items: Items;
+    getItemSize: (item: T, idxMain: number, idxCross: number) => GridItem;
+    viewportSize: GridItem;
+    scrollerEl: { scrollTop: number; scrollLeft: number };
+    onTotalSizeChanged?: (totalSizeDiff: number) => void;
+    onJump?: (jump: number) => void;
+    onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
+}): InitGridPositions<T, Items> => {
+    if (!isGrid(items)) return initPositions({ items, getItemSize: (x, idx) => getItemSize(x, idx, 0).main, viewportSize: viewportSize.main, scrollerEl, onTotalSizeChanged, onJump, onChange }) as unknown as InitGridPositions<T, Items>;
+
+    const positions = getInitGridPositions(items);
+
+    const updateByIndex = (index: GridItem) => {
+        const dtp = { main: viewportSize.main * 2, cross: viewportSize.cross * 2 };
+        const correctIdx = {
+            main: positions.mainAxis.indexOf(positions.mainAxis.at(index.main)),
+            cross: positions.crossAxis.indexOf(positions.crossAxis.at(index.cross))
+        };
+
+        let passed = { main: 0, cross: 0 },
+            idx = { ...correctIdx },
+            totalpassed = { main: 0, cross: 0 };
+
+        let crossAxisPositionsMap: { [key: string]: number } = {};
+        while (passed.main < dtp.main && idx.main < positions.mainAxis.length) {
+            let mainSize = 0;
+            while (passed.cross < dtp.cross && idx.cross < positions.crossAxis.length) {
+                const size = getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross);
+                passed.cross += size.cross;
+                mainSize = mainSize > size.main ? mainSize : size.main;
+                crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
+                idx.cross++;
+            }
+            console.log({ mainSize });
+
+            passed.cross = 0;
+            passed.main += mainSize;
+            totalpassed.main += mainSize;
+            idx.main++;
+            idx.cross = correctIdx.cross;
+        }
+        //totalpassed.cross += Object.values(crossAxisPositionsMap).reduce((a, b) => a + b, 0);
+        console.log({ totalpassed: { ...totalpassed }, dtp, passed, poss: { ...crossAxisPositionsMap } });
+        //crossAxisPositionsMap = {};
+        passed = { main: 0, cross: 0 };
+        idx = { ...correctIdx };
+        while (passed.main < dtp.main && idx.main > 0) {
+            let mainSize = 0;
+            while (passed.cross < dtp.cross && idx.cross > 0) {
+                const size = getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross);
+                passed.cross += size.cross;
+                mainSize = mainSize > size.main ? mainSize : size.main;
+                crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
+                if (passed.cross < dtp.cross) {
+                    idx.cross--;
+                }
+            }
+
+            passed.cross = 0;
+            passed.main += mainSize;
+            if (idx.main !== correctIdx.main) totalpassed.main += mainSize; // cause we already counted correctIdx passed distance in the while loop above
+            if (passed.main < dtp.main) {
+                idx.main--;
+                idx.cross = correctIdx.cross;
+            }
+        }
+        console.log('idx.cross', { ...idx, totalpassed, index, correctIdx });
+        totalpassed.cross += Object.values(crossAxisPositionsMap).reduce((a, b) => a + b, 0);
+        //crossAxisPositionsMap = {};
+        passed = { main: 0, cross: 0 };
+        const iniCrossIdx = idx.cross;
+        let currPos = { main: positions.mainAxis.at(idx.main).pos, cross: positions.crossAxis.at(idx.cross).pos };
+        while (idx.main < positions.mainAxis.length) {
+            let mainSize = 0;
+            while (idx.cross < positions.crossAxis.length) {
+                const itemSize =
+                    passed.cross < totalpassed.cross && passed.main < totalpassed.main
+                        ? getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross)
+                        : { main: positions.mainAxis.at(idx.main).size, cross: positions.crossAxis.at(idx.cross).size };
+                mainSize = mainSize > itemSize.main ? mainSize : itemSize.main;
+                crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > itemSize.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : itemSize.cross;
+                idx.cross++;
+                passed.cross += itemSize.cross;
+            }
+            positions.mainAxis[idx.main] = { size: mainSize, pos: currPos.main };
+
+            passed.cross = 0;
+            idx.cross = iniCrossIdx;
+            idx.main++;
+            currPos.main += mainSize;
+            passed.main += mainSize;
+        }
+        console.log({ crossAxisPositionsMap, positions: JSON.parse(JSON.stringify(positions)) });
+        let cp = positions.crossAxis.at(+Object.keys(crossAxisPositionsMap).at(0)).pos;
+        for (const i of Object.keys(crossAxisPositionsMap)) {
+            positions.crossAxis[+i] = { size: crossAxisPositionsMap[i], pos: cp };
+            cp += crossAxisPositionsMap[i];
+        }
+    };
+
+    if (positions.crossAxis.length) {
+        const idx = {
+            main: binarySearchFirst(scrollerEl.scrollTop, positions.mainAxis),
+            cross: binarySearchFirst(scrollerEl.scrollLeft, positions.crossAxis)
+        };
+        updateByIndex(idx);
+    }
+
+    return { positions, updateByIndex } as unknown as InitGridPositions<T, Items>;
+};
+
 export const initPositions = <T>({
     items,
     getItemSize,
