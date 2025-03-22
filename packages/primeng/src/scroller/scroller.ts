@@ -1598,9 +1598,9 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
         //crossAxisPositionsMap = {};
         passed = { main: 0, cross: 0 };
         idx = { ...correctIdx };
-        while (passed.main < Math.ceil(dtp.main / 2) && idx.main > 0) {
+        while (passed.main < Math.ceil(dtp.main / 2) && idx.main >= 0) {
             let mainSize = 0;
-            while (passed.cross < Math.ceil(dtp.cross / 2) && idx.cross > 0) {
+            while (passed.cross < Math.ceil(dtp.cross / 2) && idx.cross >= 0) {
                 const size = getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross);
                 if (idx.cross !== correctIdx.cross) passed.cross += size.cross;
                 mainSize = mainSize > size.main ? mainSize : size.main;
@@ -1620,6 +1620,7 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
                 idx.cross = correctIdx.cross;
             }
         }
+        idx = { main: Math.max(0, idx.main), cross: Math.max(0, idx.cross) };
         console.log('idx.cross', { ...idx, totalpassed, index, correctIdx });
         totalpassed.cross += Object.values(crossAxisPositionsMap).reduce((a, b) => a + b, 0);
         //crossAxisPositionsMap = {};
