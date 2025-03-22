@@ -551,16 +551,25 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate real positions and adjust leftover positions from bottom up', () => {
-            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            positions.updateByIndex(-1);
+            const { positions, updateByIndex } = initGridPositions({ items: getItems(), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 200, cross: 200 }), viewportSize: { main: 200, cross: 200 } });
+            updateByIndex({ main: -1, cross: -1 });
 
-            expect(positions.positions).toEqual([
-                { size: 200, pos: 0 },
-                { size: 200, pos: 200 },
-                { size: 40, pos: 400 },
-                { size: 200, pos: 440 },
-                { size: 200, pos: 640 }
-            ]);
+            expect(positions).toEqual({
+                mainAxis: [
+                    { size: 200, pos: 0 },
+                    { size: 200, pos: 200 },
+                    { size: 40, pos: 400 },
+                    { size: 200, pos: 440 },
+                    { size: 200, pos: 640 }
+                ],
+                crossAxis: [
+                    { size: 200, pos: 0 },
+                    { size: 200, pos: 200 },
+                    { size: 40, pos: 400 },
+                    { size: 200, pos: 440 },
+                    { size: 200, pos: 640 }
+                ]
+            });
         });
 
         it('should calculate correct jumps', () => {
