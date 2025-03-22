@@ -1586,7 +1586,6 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
                 crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
                 idx.cross++;
             }
-            console.log({ mainSize });
 
             passed.cross = 0;
             passed.main += mainSize;
@@ -1599,22 +1598,24 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
         //crossAxisPositionsMap = {};
         passed = { main: 0, cross: 0 };
         idx = { ...correctIdx };
-        while (passed.main < dtp.main && idx.main > 0) {
+        while (passed.main < Math.ceil(dtp.main / 2) && idx.main > 0) {
             let mainSize = 0;
-            while (passed.cross < dtp.cross && idx.cross > 0) {
+            while (passed.cross < Math.ceil(dtp.cross / 2) && idx.cross > 0) {
                 const size = getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross);
-                passed.cross += size.cross;
+                if (idx.cross !== correctIdx.cross) passed.cross += size.cross;
                 mainSize = mainSize > size.main ? mainSize : size.main;
                 crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
-                if (passed.cross < dtp.cross) {
+                if (passed.cross < Math.ceil(dtp.cross / 2)) {
                     idx.cross--;
                 }
             }
 
             passed.cross = 0;
-            passed.main += mainSize;
-            if (idx.main !== correctIdx.main) totalpassed.main += mainSize; // cause we already counted correctIdx passed distance in the while loop above
-            if (passed.main < dtp.main) {
+            if (idx.main !== correctIdx.main) {
+                totalpassed.main += mainSize; // cause we already counted correctIdx passed distance in the while loop above
+                passed.main += mainSize;
+            }
+            if (passed.main < Math.ceil(dtp.main / 2)) {
                 idx.main--;
                 idx.cross = correctIdx.cross;
             }
@@ -1626,17 +1627,20 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
         const iniCrossIdx = idx.cross;
         let currPos = { main: positions.mainAxis.at(idx.main).pos, cross: positions.crossAxis.at(idx.cross).pos };
         while (idx.main < positions.mainAxis.length) {
+            const calculatedSet = new Set();
             let mainSize = 0;
             while (idx.cross < positions.crossAxis.length) {
-                const itemSize =
-                    passed.cross < totalpassed.cross && passed.main < totalpassed.main
-                        ? getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross)
-                        : { main: positions.mainAxis.at(idx.main).size, cross: positions.crossAxis.at(idx.cross).size };
-                mainSize = mainSize > itemSize.main ? mainSize : itemSize.main;
-                crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > itemSize.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : itemSize.cross;
+                const calculated = passed.cross < totalpassed.cross && passed.main < totalpassed.main;
+                const itemSize = calculated ? getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross) : { main: positions.mainAxis.at(idx.main).size, cross: positions.crossAxis.at(idx.cross).size };
+                if (calculated) {
+                    calculatedSet.add(idx.main);
+                    mainSize = mainSize > itemSize.main ? mainSize : itemSize.main;
+                    crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > itemSize.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : itemSize.cross;
+                }
                 idx.cross++;
                 passed.cross += itemSize.cross;
             }
+            mainSize = calculatedSet.has(idx.main) ? mainSize : positions.mainAxis[idx.main].size;
             positions.mainAxis[idx.main] = { size: mainSize, pos: currPos.main };
 
             passed.cross = 0;
@@ -1647,9 +1651,17 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
         }
         console.log({ crossAxisPositionsMap, positions: JSON.parse(JSON.stringify(positions)) });
         let cp = positions.crossAxis.at(+Object.keys(crossAxisPositionsMap).at(0)).pos;
+        let lastIdx = 0;
         for (const i of Object.keys(crossAxisPositionsMap)) {
             positions.crossAxis[+i] = { size: crossAxisPositionsMap[i], pos: cp };
             cp += crossAxisPositionsMap[i];
+            lastIdx = +i + 1;
+        }
+        while (lastIdx < positions.crossAxis.length) {
+            const size = positions.crossAxis[lastIdx].size;
+            positions.crossAxis[lastIdx] = { size, pos: cp };
+            cp += size;
+            lastIdx++;
         }
     };
 

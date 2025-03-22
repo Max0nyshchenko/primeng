@@ -495,36 +495,37 @@ fdescribe('mytest', () => {
         it('should calculate positions at the middle', () => {
             const { positions, updateByIndex } = initGridPositions({
                 items: getItems(10, 10),
-                scrollerEl: { scrollTop: 340, scrollLeft: 400 },
+                scrollerEl: { scrollTop: 160, scrollLeft: 160 },
                 getItemSize: (_, mainIdx, crossIdx) => ({ main: [20, 50, 100][mainIdx % 3], cross: [30, 60, 110][crossIdx % 3] }),
                 viewportSize: { main: 100, cross: 100 }
             });
             updateByIndex({ main: 4, cross: 4 });
+            console.log({ positions });
 
             expect(positions).toEqual({
                 mainAxis: [
                     { size: 40, pos: 0 },
                     { size: 40, pos: 40 },
-                    { size: 40, pos: 80 },
-                    { size: 40, pos: 120 },
-                    { size: 40, pos: 160 },
-                    { size: 40, pos: 200 },
-                    { size: 40, pos: 240 },
-                    { size: 40, pos: 280 },
-                    { size: 40, pos: 320 },
-                    { size: 40, pos: 360 }
+                    { size: 100, pos: 80 },
+                    { size: 20, pos: 180 },
+                    { size: 50, pos: 200 },
+                    { size: 100, pos: 250 },
+                    { size: 20, pos: 350 },
+                    { size: 50, pos: 370 },
+                    { size: 40, pos: 420 },
+                    { size: 40, pos: 460 }
                 ],
                 crossAxis: [
                     { size: 40, pos: 0 },
                     { size: 40, pos: 40 },
-                    { size: 40, pos: 80 },
-                    { size: 40, pos: 120 },
-                    { size: 40, pos: 160 },
-                    { size: 40, pos: 200 },
-                    { size: 40, pos: 240 },
-                    { size: 40, pos: 280 },
-                    { size: 40, pos: 320 },
-                    { size: 40, pos: 360 }
+                    { size: 110, pos: 80 },
+                    { size: 30, pos: 190 },
+                    { size: 60, pos: 220 },
+                    { size: 110, pos: 280 },
+                    { size: 30, pos: 390 },
+                    { size: 40, pos: 420 },
+                    { size: 40, pos: 460 },
+                    { size: 40, pos: 500 }
                 ]
             });
         });
