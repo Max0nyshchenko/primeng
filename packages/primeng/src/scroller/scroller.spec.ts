@@ -110,7 +110,7 @@ fdescribe('mytest', () => {
         });
 
         it('should scrollTo the bottom with itemSize equals to 50', () => {
-            scroller.scrollTo({ top: scroller._poss.totalSize() });
+            scroller.scrollTo({ top: scroller._poss.totalSize().main });
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
@@ -121,7 +121,7 @@ fdescribe('mytest', () => {
         });
 
         it('should scrollTo the middle with itemSize equals to 50', () => {
-            scroller.scrollTo({ top: scroller._poss.totalSize() / 2 });
+            scroller.scrollTo({ top: scroller._poss.totalSize().main / 2 });
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
@@ -289,7 +289,7 @@ fdescribe('mytest', () => {
                 first()
             );
             await lastValueFrom(scroll$);
-            const itemIdx = binarySearchFirst(scrollTo, scroller._poss.positions);
+            const itemIdx = binarySearchFirst(scrollTo, scroller._poss.positions.mainAxis);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
@@ -308,7 +308,7 @@ fdescribe('mytest', () => {
                 first()
             );
             await lastValueFrom(scroll$);
-            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions);
+            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions.mainAxis);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
@@ -327,7 +327,7 @@ fdescribe('mytest', () => {
                 first()
             );
             await lastValueFrom(scroll$);
-            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions);
+            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions.mainAxis);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
@@ -341,80 +341,95 @@ fdescribe('mytest', () => {
         it('should create positions', () => {
             const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
 
-            expect(positions.positions).toEqual([
-                { size: 50, pos: 0 },
-                { size: 50, pos: 50 },
-                { size: 50, pos: 100 },
-                { size: 50, pos: 150 },
-                { size: 50, pos: 200 },
-                { size: 50, pos: 250 },
-                { size: 50, pos: 300 },
-                { size: 50, pos: 350 },
-                { size: 40, pos: 400 },
-                { size: 40, pos: 440 }
-            ]);
+            expect(positions.positions).toEqual({
+                mainAxis: [
+                    { size: 50, pos: 0 },
+                    { size: 50, pos: 50 },
+                    { size: 50, pos: 100 },
+                    { size: 50, pos: 150 },
+                    { size: 50, pos: 200 },
+                    { size: 50, pos: 250 },
+                    { size: 50, pos: 300 },
+                    { size: 50, pos: 350 },
+                    { size: 40, pos: 400 },
+                    { size: 40, pos: 440 }
+                ],
+                crossAxis: []
+            });
         });
 
         it('should calculate positions at the bottom', () => {
             const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
             positions.updateByIndex(-1);
 
-            expect(positions.positions).toEqual([
-                { size: 200, pos: 0 },
-                { size: 200, pos: 200 },
-                { size: 40, pos: 400 },
-                { size: 40, pos: 440 },
-                { size: 40, pos: 480 },
-                { size: 40, pos: 520 },
-                { size: 40, pos: 560 },
-                { size: 40, pos: 600 },
-                { size: 200, pos: 640 },
-                { size: 200, pos: 840 }
-            ]);
+            expect(positions.positions).toEqual({
+                mainAxis: [
+                    { size: 200, pos: 0 },
+                    { size: 200, pos: 200 },
+                    { size: 40, pos: 400 },
+                    { size: 40, pos: 440 },
+                    { size: 40, pos: 480 },
+                    { size: 40, pos: 520 },
+                    { size: 40, pos: 560 },
+                    { size: 40, pos: 600 },
+                    { size: 200, pos: 640 },
+                    { size: 200, pos: 840 }
+                ],
+                crossAxis: []
+            });
         });
 
         it('should calculate positions at the middle', () => {
             const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
             positions.updateByIndex(4);
 
-            expect(positions.positions).toEqual([
-                { size: 200, pos: 0 },
-                { size: 200, pos: 200 },
-                { size: 40, pos: 400 },
-                { size: 200, pos: 440 },
-                { size: 200, pos: 640 },
-                { size: 200, pos: 840 },
-                { size: 40, pos: 1040 },
-                { size: 40, pos: 1080 },
-                { size: 40, pos: 1120 },
-                { size: 40, pos: 1160 }
-            ]);
+            expect(positions.positions).toEqual({
+                mainAxis: [
+                    { size: 200, pos: 0 },
+                    { size: 200, pos: 200 },
+                    { size: 40, pos: 400 },
+                    { size: 200, pos: 440 },
+                    { size: 200, pos: 640 },
+                    { size: 200, pos: 840 },
+                    { size: 40, pos: 1040 },
+                    { size: 40, pos: 1080 },
+                    { size: 40, pos: 1120 },
+                    { size: 40, pos: 1160 }
+                ],
+                crossAxis: []
+            });
         });
 
         it('should calculate real positions and adjust leftover positions from top down', () => {
             const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
             positions.updateByIndex(1);
 
-            expect(positions.positions).toEqual([
-                { size: 200, pos: 0 },
-                { size: 200, pos: 200 },
-                { size: 40, pos: 400 },
-                { size: 40, pos: 440 },
-                { size: 40, pos: 480 }
-            ]);
+            expect(positions.positions).toEqual({
+                mainAxis: [
+                    { size: 200, pos: 0 },
+                    { size: 200, pos: 200 },
+                    { size: 40, pos: 400 },
+                    { size: 40, pos: 440 },
+                    { size: 40, pos: 480 }
+                ],
+                crossAxis: []
+            });
         });
 
         it('should calculate real positions and adjust leftover positions from bottom up', () => {
             const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
             positions.updateByIndex(-1);
 
-            expect(positions.positions).toEqual([
-                { size: 200, pos: 0 },
-                { size: 200, pos: 200 },
-                { size: 40, pos: 400 },
-                { size: 200, pos: 440 },
-                { size: 200, pos: 640 }
-            ]);
+            expect(positions.positions).toEqual({
+                mainAxis: [
+                    { size: 200, pos: 0 },
+                    { size: 200, pos: 200 },
+                    { size: 40, pos: 400 },
+                    { size: 200, pos: 440 },
+                    { size: 200, pos: 640 }
+                ],
+                crossAxis: []
+            });
         });
 
         it('should calculate correct jumps', () => {
@@ -422,10 +437,10 @@ fdescribe('mytest', () => {
             const scrollerEl = { scrollTop: 0 };
             const positions = initPositions({ items: getItems(100), scrollerEl, getItemSize: () => 200, viewportSize: 200, onChange: ({ jump }) => (actualJump = jump) });
             const itemIdx = 50;
-            const positionBefore = positions.positions.at(itemIdx).pos;
+            const positionBefore = positions.positions.mainAxis.at(itemIdx).pos;
             scrollerEl.scrollTop = positionBefore;
             positions.at(25);
-            const expectedJump = positions.positions.at(itemIdx).pos - positionBefore;
+            const expectedJump = positions.positions.mainAxis.at(itemIdx).pos - positionBefore;
 
             expect(actualJump).toBe(expectedJump);
         });
