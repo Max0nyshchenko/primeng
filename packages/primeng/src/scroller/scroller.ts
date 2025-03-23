@@ -1543,25 +1543,30 @@ type InitGridFn = {
 type InitGridPositions<T, Items extends T[][] | T[]> = {
     positions: Items extends T[][] ? GridPos : ItemPos[];
     updateByIndex: (idx: Items extends T[][] ? GridItem : number) => void;
+    at: Items extends T[][] ? (main: number, cross?: number) => { main: ItemPos; cross: ItemPos } : (idx: number) => ItemPos;
 };
+type InitGridPositionsOnChange<T, Items extends T[] | T[][]> = (changes: { jump: Items extends T[][] ? GridItem : number; totalSizeDiff: Items extends T[][] ? GridItem : number }) => void;
 export const initGridPositions = <T, Items extends T[] | T[][]>({
     items,
     getItemSize,
     viewportSize,
     scrollerEl,
-    onTotalSizeChanged = () => {},
-    onJump = () => {},
     onChange = () => {}
 }: {
     items: Items;
     getItemSize: (item: T, idxMain: number, idxCross: number) => GridItem;
     viewportSize: GridItem;
     scrollerEl: { scrollTop: number; scrollLeft: number };
-    onTotalSizeChanged?: (totalSizeDiff: number) => void;
-    onJump?: (jump: number) => void;
-    onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
+    onChange?: InitGridPositionsOnChange<T, Items>;
 }): InitGridPositions<T, Items> => {
-    if (!isGrid(items)) return initPositions({ items, getItemSize: (x, idx) => getItemSize(x, idx, 0).main, viewportSize: viewportSize.main, scrollerEl, onTotalSizeChanged, onJump, onChange }) as unknown as InitGridPositions<T, Items>;
+    if (!isGrid(items))
+        return initPositions({
+            items,
+            getItemSize: (x, idx) => getItemSize(x, idx, 0).main,
+            viewportSize: viewportSize.main,
+            scrollerEl,
+            onChange: onChange as (changes: { jump: number; totalSizeDiff: number }) => void
+        }) as unknown as InitGridPositions<T, Items>;
 
     const positions = getInitGridPositions(items);
 
@@ -1666,6 +1671,48 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
         }
     };
 
+    const totalSize = () => ({
+        main: positions.mainAxis.at(-1).pos + positions.mainAxis.at(-1).size,
+        cross: positions.crossAxis.at(-1).pos + positions.crossAxis.at(-1).size
+    });
+
+    const updateByIndexWithChanges = (index: GridItem) => {
+        const firstInViewportIdx = {
+            main: binarySearchFirst(scrollerEl.scrollTop, positions.mainAxis),
+            cross: binarySearchFirst(scrollerEl.scrollTop, positions.crossAxis)
+        };
+        const initFirstInViewportPos = {
+            main: positions.mainAxis.at(firstInViewportIdx.main).pos,
+            cross: positions.crossAxis.at(firstInViewportIdx.cross).pos
+        };
+        const initTotalSize = totalSize();
+
+        updateByIndex(index);
+
+        const totalSizeDiff = {
+            main: totalSize().main - initTotalSize.main,
+            cross: totalSize().cross - initTotalSize.cross
+        };
+        const jump = {
+            main: positions.mainAxis.at(firstInViewportIdx.main).pos - initFirstInViewportPos.main,
+            cross: positions.crossAxis.at(firstInViewportIdx.cross).pos - initFirstInViewportPos.cross
+        };
+        return { jump, totalSizeDiff };
+    };
+
+    const updateByIndexWithEvents = (index: GridItem) => {
+        const { totalSizeDiff, jump } = updateByIndexWithChanges(index);
+        if (jump.main !== 0 || jump.cross !== 0 || totalSizeDiff.main !== 0 || totalSizeDiff.cross !== 0) onChange({ jump, totalSizeDiff } as unknown as Parameters<InitGridPositionsOnChange<T, Items>>[0]);
+    };
+
+    const at = (main: number, cross: number = 0) => {
+        updateByIndexWithEvents({ main, cross });
+        return {
+            main: positions.mainAxis.at(main),
+            cross: positions.crossAxis.at(cross)
+        };
+    };
+
     if (positions.crossAxis.length) {
         const idx = {
             main: binarySearchFirst(scrollerEl.scrollTop, positions.mainAxis),
@@ -1674,7 +1721,7 @@ export const initGridPositions = <T, Items extends T[] | T[][]>({
         updateByIndex(idx);
     }
 
-    return { positions, updateByIndex } as unknown as InitGridPositions<T, Items>;
+    return { positions, updateByIndex, at } as unknown as InitGridPositions<T, Items>;
 };
 
 export const initPositions = <T>({
@@ -1682,16 +1729,12 @@ export const initPositions = <T>({
     getItemSize,
     viewportSize,
     scrollerEl,
-    onTotalSizeChanged = () => {},
-    onJump = () => {},
     onChange = () => {}
 }: {
     items: T[];
     getItemSize: (item: T, idx: number) => number;
     viewportSize: number;
     scrollerEl: { scrollTop: number };
-    onTotalSizeChanged?: (totalSizeDiff: number) => void;
-    onJump?: (jump: number) => void;
     onChange?: (changes: { jump: number; totalSizeDiff: number }) => void;
 }) => {
     const positions = getInitPositions(items);
@@ -1798,8 +1841,6 @@ export const initPositions = <T>({
 
     const updateByIndexWithEvents = (index: number) => {
         const { totalSizeDiff, jump } = updateByIndexWithChanges(index);
-        if (totalSizeDiff !== 0) onTotalSizeChanged(totalSizeDiff);
-        if (jump !== 0) onJump(jump);
         if (jump !== 0 || totalSizeDiff !== 0) onChange({ jump, totalSizeDiff });
     };
 

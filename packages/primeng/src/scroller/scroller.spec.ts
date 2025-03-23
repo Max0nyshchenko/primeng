@@ -573,24 +573,28 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate correct jumps', () => {
-            let actualJump: number;
-            const scrollerEl = { scrollTop: 0 };
-            const positions = initPositions({ items: getItems(100), scrollerEl, getItemSize: () => 200, viewportSize: 200, onChange: ({ jump }) => (actualJump = jump) });
-            const itemIdx = 50;
-            const positionBefore = positions.positions.at(itemIdx).pos;
-            scrollerEl.scrollTop = positionBefore;
-            positions.at(25);
-            const expectedJump = positions.positions.at(itemIdx).pos - positionBefore;
+            let actualJump: { main: number; cross: number };
+            const scrollerEl = { scrollTop: 0, scrollLeft: 0 };
+            const { positions, at } = initGridPositions({ items: getItems(100, 100), scrollerEl, getItemSize: () => ({ main: 200, cross: 200 }), viewportSize: { main: 200, cross: 200 }, onChange: ({ jump }) => (actualJump = jump) });
+            const itemIdx = { main: 50, cross: 50 };
+            const positionBefore = { main: positions.mainAxis.at(itemIdx.main).pos, cross: positions.crossAxis.at(itemIdx.cross).pos };
+            scrollerEl.scrollTop = positionBefore.main;
+            scrollerEl.scrollLeft = positionBefore.cross;
+            at(25);
+            const expectedJump = {
+                main: positions.mainAxis.at(itemIdx.main).pos - positionBefore.main,
+                cross: positions.crossAxis.at(itemIdx.cross).pos - positionBefore.cross
+            };
 
-            expect(actualJump).toBe(expectedJump);
+            expect(actualJump).toEqual(expectedJump);
         });
 
         it('should be pure', () => {
-            const positions = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            const positions2 = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
+            const positions = initGridPositions({ items: getItems(100), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 200, cross: 200 }), viewportSize: { main: 200, cross: 200 } });
+            const positions2 = initGridPositions({ items: getItems(100), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 200, cross: 200 }), viewportSize: { main: 200, cross: 200 } });
             const idx = 25;
-            positions.at(idx);
-            positions2.at(idx);
+            positions.at(idx, idx);
+            positions2.at(idx, idx);
 
             expect(positions.positions).toEqual(positions2.positions);
         });
