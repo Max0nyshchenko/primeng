@@ -433,7 +433,7 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate correct jumps', () => {
-            let actualJump: number;
+            let actualJump: { main: number; cross: number };
             const scrollerEl = { scrollTop: 0 };
             const positions = initPositions({ items: getItems(100), scrollerEl, getItemSize: () => 200, viewportSize: 200, onChange: ({ jump }) => (actualJump = jump) });
             const itemIdx = 50;
@@ -442,7 +442,7 @@ fdescribe('mytest', () => {
             positions.at(25);
             const expectedJump = positions.positions.mainAxis.at(itemIdx).pos - positionBefore;
 
-            expect(actualJump).toBe(expectedJump);
+            expect(actualJump.main).toBe(expectedJump);
         });
 
         it('should be pure', () => {
@@ -485,7 +485,7 @@ fdescribe('mytest', () => {
                 getItemSize: (_, mainIdx, crossIdx) => ({ main: [20, 50, 100][mainIdx % 3], cross: [30, 60, 110][crossIdx % 3] }),
                 viewportSize: { main: 100, cross: 100 }
             });
-            updateByIndex({ main: -1, cross: -1 });
+            updateByIndex(-1, -1);
 
             expect(positions).toEqual({
                 mainAxis: [
@@ -513,7 +513,7 @@ fdescribe('mytest', () => {
                 getItemSize: (_, mainIdx, crossIdx) => ({ main: [20, 50, 100][mainIdx % 3], cross: [30, 60, 110][crossIdx % 3] }),
                 viewportSize: { main: 100, cross: 100 }
             });
-            updateByIndex({ main: 4, cross: 4 });
+            updateByIndex(4, 4);
 
             expect(positions).toEqual({
                 mainAxis: [
@@ -545,7 +545,7 @@ fdescribe('mytest', () => {
 
         it('should calculate real positions and adjust leftover positions from top down', () => {
             const { positions, updateByIndex } = initGridPositions({ items: getItems(), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 200, cross: 200 }), viewportSize: { main: 200, cross: 200 } });
-            updateByIndex({ main: 1, cross: 1 });
+            updateByIndex(1, 1);
 
             expect(positions).toEqual({
                 mainAxis: [
@@ -567,7 +567,7 @@ fdescribe('mytest', () => {
 
         it('should calculate real positions and adjust leftover positions from bottom up', () => {
             const { positions, updateByIndex } = initGridPositions({ items: getItems(), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 200, cross: 200 }), viewportSize: { main: 200, cross: 200 } });
-            updateByIndex({ main: -1, cross: -1 });
+            updateByIndex(-1, -1);
 
             expect(positions).toEqual({
                 mainAxis: [
