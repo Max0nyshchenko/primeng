@@ -87,9 +87,7 @@ class RoWatcher implements AfterViewInit, OnDestroy {
                 <ng-template #buildInContent>
                     <div #content class="p-virtualscroller-content" [ngClass]="{ 'p-virtualscroller-loading ': d_loading }" [ngStyle]="contentStyle" [attr.data-pc-section]="'content'">
                         <ng-container *ngFor="let item of loadedItems; let index = index; trackBy: _trackBy">
-                            <ro-watcher [ro]="ro" [grid]="both">
-                                <ng-container *ngTemplateOutlet="itemTemplate || _itemTemplate; context: { $implicit: item, options: getOptions(index) }"></ng-container>
-                            </ro-watcher>
+                            <ng-container *ngTemplateOutlet="itemTemplate || _itemTemplate; context: { $implicit: item, options: getOptions(index) }"></ng-container>
                         </ng-container>
                     </div>
                 </ng-template>
@@ -562,8 +560,11 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
 
     get loadedItems() {
         if (this._items && !this.d_loading) {
-            if (this.isBoth(this._items)) return this._items.slice(this._appendOnly ? 0 : this.first.rows, this.last.rows).map((item) => (this._columns ? item : item.slice(this._appendOnly ? 0 : this.first.cols, this.last.cols)));
-            else if (this.horizontal && this._columns) return this._items;
+            if (this.isBoth(this._items)) {
+                const res = this._items.slice(this._appendOnly ? 0 : this.first.rows, this.last.rows).map((item) => (this._columns ? item : item.slice(this._appendOnly ? 0 : this.first.cols, this.last.cols)));
+                console.log({ loadedItems: res });
+                return res;
+            } else if (this.horizontal && this._columns) return this._items;
             else return this._items.slice(this._appendOnly ? 0 : this.first, this.last);
         }
 
@@ -724,12 +725,13 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 onChange: ({ jump, totalSizeDiff }) => {
                     const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
                     const scrollLeft = this.elementViewChild?.nativeElement.scrollLeft;
+                    console.log({ jump, totalSizeDiff });
 
-                    if ((typeof totalSizeDiff === 'number' && totalSizeDiff) || (typeof totalSizeDiff === 'object' && (totalSizeDiff.main || totalSizeDiff.cross))) {
+                    if (totalSizeDiff.main || totalSizeDiff.cross) {
                         this.setSpacerSize();
                         this.cd.detectChanges();
                     }
-                    if ((typeof jump === 'number' && jump) || (typeof jump === 'object' && (jump.main || jump.cross))) {
+                    if (jump.main || jump.cross) {
                         const topJump = typeof jump === 'object' ? jump.main : jump;
                         const leftJump = typeof jump === 'object' ? jump.cross : jump;
                         this.scrollTo({ top: scrollTop + topJump, left: scrollLeft + leftJump });
@@ -802,7 +804,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                 };
                 //const pos = { y: this._itemsPositions.mainAxis[index[0]], x: this._itemsPositions.crossAxis[index[1]] };
                 const pos = this._poss.at(index[0], index[1]);
-                scrollTo(pos.main.pos + contentPos.left, pos.cross.pos + contentPos.top);
+                scrollTo(pos.cross.pos + contentPos.left, pos.main.pos + contentPos.top);
                 isScrollChanged = this.lastScrollPos.top !== scrollTop || this.lastScrollPos.left !== scrollLeft;
                 isRangeChanged = newFirst.rows !== first.rows || newFirst.cols !== first.cols;
             } else {
@@ -1074,8 +1076,8 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                     cols: this._poss.getFirst({ main: this.first.rows, cross: this.first.cols }).cross
                 };
                 newLast = {
-                    rows: this._poss.getLast({ main: this.first.rows, cross: this.first.cols }).main,
-                    cols: this._poss.getLast({ main: this.first.rows, cross: this.first.cols }).cross
+                    rows: this._poss.getLast({ main: this.first.rows, cross: this.first.cols }).main + 1,
+                    cols: this._poss.getLast({ main: this.first.rows, cross: this.first.cols }).cross + 1
                 };
 
                 isRangeChanged = newFirst.rows !== this.first.rows || newLast.rows !== this.last.rows || newFirst.cols !== this.first.cols || newLast.cols !== this.last.cols || this.isRangeChanged;
@@ -1647,7 +1649,7 @@ export const initGridPositions = <T>({
     const updateByIndexWithChanges = (index: GridItem) => {
         const firstInViewportIdx = {
             main: binarySearchFirst(scrollerEl.scrollTop, positions.mainAxis),
-            cross: binarySearchFirst(scrollerEl.scrollTop, positions.crossAxis)
+            cross: binarySearchFirst(scrollerEl.scrollLeft, positions.crossAxis)
         };
         const initFirstInViewportPos = {
             main: positions.mainAxis.at(firstInViewportIdx.main).pos,
@@ -1665,6 +1667,7 @@ export const initGridPositions = <T>({
             main: positions.mainAxis.at(firstInViewportIdx.main).pos - initFirstInViewportPos.main,
             cross: positions.crossAxis.at(firstInViewportIdx.cross).pos - initFirstInViewportPos.cross
         };
+        console.error({ jump, positions: JSON.parse(JSON.stringify(positions)), firstInViewportIdx, initFirstInViewportPos });
         return { jump, totalSizeDiff };
     };
 

@@ -29,14 +29,36 @@ fdescribe('mytest', () => {
             .queryAll(By.css('.p-virtualscroller-content div'))
             .map((x) => x.nativeElement)
             .filter((x) => x instanceof HTMLElement);
+    const getRenderedItemsGrid = <T>(fixture: ComponentFixture<T>) => getRenderedItems(fixture).flatMap((parent) => [...parent.children].filter((x) => x instanceof HTMLElement));
+
     const findByBoundingClientRect = (items: HTMLElement[], scrollerDiv: HTMLDivElement, predicate: (itemRect: DOMRect, viewportRect: DOMRect, index: number) => boolean) => {
         return items.find((x, i) => predicate(x.getBoundingClientRect(), scrollerDiv.getBoundingClientRect(), i));
     };
+
     const getFirstInViewport = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
         findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top);
+
+    const getFirstInViewportGrid = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
+        findByBoundingClientRect(
+            getRenderedItemsGrid(fixture),
+            scrollerDiv,
+            (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top && itemRect.left <= viewportRect.left && itemRect.right > viewportRect.left
+        );
+
     const getLastInViewport = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
         findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.bottom && itemRect.bottom >= viewportRect.bottom);
+
+    const getLastInViewportGrid = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
+        findByBoundingClientRect(
+            getRenderedItemsGrid(fixture),
+            scrollerDiv,
+            (itemRect, viewportRect) => itemRect.top <= viewportRect.bottom && itemRect.bottom >= viewportRect.bottom && itemRect.left <= viewportRect.right && itemRect.right >= viewportRect.right
+        );
+
     const getBoundaryViewportItems = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) => ({ lastInViewport: getLastInViewport(fixture, scrollerDiv), firstInViewport: getFirstInViewport(fixture, scrollerDiv) });
+
+    const getBoundaryViewportItemsGrid = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) => ({ lastInViewport: getLastInViewportGrid(fixture, scrollerDiv), firstInViewport: getFirstInViewportGrid(fixture, scrollerDiv) });
+
     const expandInViewport = <T>(num: number, fixture: ComponentFixture<T>) => {
         getRenderedItems(fixture)
             .slice(0, num)
@@ -61,9 +83,7 @@ fdescribe('mytest', () => {
             scroller.scrollToIndex(scroller.items.length - 1);
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            const renderedItems = getRenderedItems(fixture);
-            const firstInViewport = findByBoundingClientRect(renderedItems, scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top);
-            const lastInViewport = findByBoundingClientRect(renderedItems, scrollerDiv, (itemRect, viewportRect) => itemRect.bottom === viewportRect.bottom);
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(scroller.last).toBe(scroller.items.length);
             expect(firstInViewport).toBeTruthy();
@@ -333,6 +353,52 @@ fdescribe('mytest', () => {
 
             expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
             expect(lastInViewport).toBeTruthy();
+        });
+    });
+
+    describe('Grid Scroller', () => {
+        const getItems = (lenMain = 5, lenCross = 5) => Array.from({ length: lenMain }, (_, idx) => Array.from({ length: lenCross }, (_, idxCross) => `Item #${idx}_${idxCross}`));
+        @Component({
+            template: `
+                <p-virtualscroller [items]="items" orientation="both" [itemSize]="itemSize" scrollHeight="200px" [style]="{ width: '200px', height: '200px' }">
+                    <ng-template #item let-item let-options="options">
+                        <div style="display: flex; align-items: center">
+                            <div *ngFor="let el of item" style="width: {{ itemSize[1] }}px; height: {{ itemSize[0] }}px">{{ el }}</div>
+                        </div>
+                    </ng-template>
+                </p-virtualscroller>
+            `,
+            imports: [Scroller, CommonModule]
+        })
+        class GridScrollerWrapper {
+            items = getItems(1000, 1000);
+            itemSize = [50, 100];
+        }
+
+        let fixture: ComponentFixture<GridScrollerWrapper>;
+        let component: GridScrollerWrapper;
+        let scroller: Scroller;
+        let scrollerDiv: HTMLDivElement;
+        beforeEach(async () => {
+            await TestBed.configureTestingModule({ imports: [GridScrollerWrapper] }).compileComponents();
+            fixture = TestBed.createComponent(GridScrollerWrapper);
+            component = fixture.componentInstance;
+            fixture.autoDetectChanges();
+            scroller = fixture.debugElement.query(By.directive(Scroller)).componentInstance;
+            scrollerDiv = scroller.elementViewChild.nativeElement;
+        });
+
+        fit('should scrollToIndex of the last index with itemSize equals to [50,100]', () => {
+            const idx = { main: component.items.length - 1, cross: component.items.at(0).length - 1 };
+            scroller.scrollToIndex([idx.main, idx.cross]);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+            console.log({ firstInViewport });
+
+            expect(scroller.last).toEqual({ rows: idx.main + 1, cols: idx.cross + 1 });
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport.textContent.trim()).toBe(component.items.at(idx.main).at(idx.cross));
         });
     });
 
