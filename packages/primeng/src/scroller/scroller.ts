@@ -732,9 +732,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                         this.cd.detectChanges();
                     }
                     if (jump.main || jump.cross) {
-                        const topJump = typeof jump === 'object' ? jump.main : jump;
-                        const leftJump = typeof jump === 'object' ? jump.cross : jump;
-                        this.scrollTo({ top: scrollTop + topJump, left: scrollLeft + leftJump });
+                        this.scrollTo({ top: scrollTop + jump.main, left: scrollLeft + jump.cross });
                         this.cd.detectChanges();
                     }
                 }
@@ -1005,13 +1003,13 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
         }
     }
 
-    setContentPosition(pos: any, jump: { rows: number; cols: number }) {
+    setContentPosition(pos: any) {
         if (this.contentEl && !this._appendOnly) {
             const first = pos ? pos.first : this.first;
             const setTransform = (_x = 0, _y = 0) => (this.contentStyle = { ...this.contentStyle, ...{ transform: `translate3d(${_x}px, ${_y}px, 0)` } });
 
             if (this.both) {
-                setTransform(this._poss.positions.crossAxis[first.cols].pos + jump.cols, this._poss.positions.mainAxis[first.rows].pos + jump.rows);
+                setTransform(this._poss.positions.crossAxis[first.cols].pos, this._poss.positions.mainAxis[first.rows].pos);
             } else {
                 const translateVal = this._poss.positions.mainAxis.at(first).pos;
                 this.horizontal ? setTransform(translateVal, 0) : setTransform(0, translateVal);
@@ -1056,21 +1054,6 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             const isScrollRight = this.lastScrollPos.left <= scrollLeft;
 
             if (!this._appendOnly || (this._appendOnly && (isScrollDown || isScrollRight))) {
-                //const initj = { rows: this._itemsPositions.mainAxis[this.first.rows].pos, cols: this._itemsPositions.crossAxis[this.first.cols].pos };
-                //const currentIndex = this.getFirstInViewport(scrollTop, scrollLeft);
-                //const triggerIndex = {
-                //    rows: calculateTriggerIndex(currentIndex.firstRowIdx, this.first.rows, this.last.rows, this.numItemsInViewport.rows, this.d_numToleratedItems[0], isScrollDown, false),
-                //    cols: calculateTriggerIndex(currentIndex.firstColIdx, this.first.cols, this.last.cols, this.numItemsInViewport.cols, this.d_numToleratedItems[1], isScrollRight, false)
-                //};
-
-                //newFirst = {
-                //    rows: calculateFirst(currentIndex.firstRowIdx, triggerIndex.rows, this.first.rows, this.last.rows, this.numItemsInViewport.rows, this.d_numToleratedItems[0], isScrollDown),
-                //    cols: calculateFirst(currentIndex.firstColIdx, triggerIndex.cols, this.first.cols, this.last.cols, this.numItemsInViewport.cols, this.d_numToleratedItems[1], isScrollRight)
-                //};
-                //newLast = {
-                //    rows: calculateLast(currentIndex.firstRowIdx, newFirst.rows, this.last.rows, this.numItemsInViewport.rows, this.d_numToleratedItems[0]),
-                //    cols: calculateLast(currentIndex.firstColIdx, newFirst.cols, this.last.cols, this.numItemsInViewport.cols, this.d_numToleratedItems[1], true)
-                //};
                 newFirst = {
                     rows: this._poss.getFirst({ main: this.first.rows, cross: this.first.cols }).main,
                     cols: this._poss.getFirst({ main: this.first.rows, cross: this.first.cols }).cross
@@ -1082,14 +1065,6 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
 
                 isRangeChanged = newFirst.rows !== this.first.rows || newLast.rows !== this.last.rows || newFirst.cols !== this.first.cols || newLast.cols !== this.last.cols || this.isRangeChanged;
                 newScrollPos = { top: scrollTop, left: scrollLeft };
-                //const rowsRange = new Range(newFirst.rows, newLast.rows);
-                //const colsRange = new Range(newFirst.cols, newLast.cols);
-                //jumpDiff = {
-                //    rows: !rowsRange.inRange(this.first.rows) || !rowsRange.inRange(this.last.rows) ? 0 : initj.rows - this._itemsPositions.mainAxis[this.first.rows].pos,
-                //    cols: !colsRange.inRange(this.first.cols) || !colsRange.inRange(this.last.cols) ? 0 : initj.cols - this._itemsPositions.crossAxis[this.first.cols].pos
-                //};
-                //jumpDiff.rows = initj.rows - this._itemsPositions.mainAxis[this.first.rows].pos;
-                //jumpDiff.cols = initj.cols - this._itemsPositions.crossAxis[this.first.cols].pos;
             }
         } else {
             const scrollPos = this.horizontal ? scrollLeft : scrollTop;
@@ -1107,18 +1082,17 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
             first: newFirst,
             last: newLast,
             isRangeChanged,
-            scrollPos: newScrollPos,
-            jump: jumpDiff
+            scrollPos: newScrollPos
         };
     }
 
     onScrollChange(event: Event) {
-        const { first, last, isRangeChanged, scrollPos, jump } = this.onScrollPositionChange({ scrollTop: (<HTMLElement>event.target).scrollTop, scrollLeft: (<HTMLElement>event.target).scrollLeft });
+        const { first, last, isRangeChanged, scrollPos } = this.onScrollPositionChange({ scrollTop: (<HTMLElement>event.target).scrollTop, scrollLeft: (<HTMLElement>event.target).scrollLeft });
 
         if (isRangeChanged) {
             const newState = { first, last };
 
-            this.setContentPosition(newState, jump);
+            this.setContentPosition(newState);
 
             this.first = first;
             this.last = last;
@@ -1557,6 +1531,10 @@ export const initGridPositions = <T>({
             totalpassed = { main: 0, cross: 0 };
 
         let crossAxisPositionsMap: { [key: string]: number } = {};
+        let dtpUp = {
+            main: Math.ceil(dtp.main / 2),
+            cross: Math.ceil(dtp.cross / 2)
+        };
         while (passed.main < dtp.main && idx.main < positions.mainAxis.length) {
             let mainSize = 0;
             while (passed.cross < dtp.cross && idx.cross < positions.crossAxis.length) {
@@ -1572,17 +1550,22 @@ export const initGridPositions = <T>({
             totalpassed.main += mainSize;
             idx.main++;
             idx.cross = correctIdx.cross;
+            if (idx.main >= positions.mainAxis.length && passed.main < dtpUp.main) {
+                dtpUp.main += dtpUp.main - passed.main;
+            }
         }
+        const passedCross = Object.values(crossAxisPositionsMap).reduce((acc, i) => acc + i, 0);
+        if (passedCross < dtpUp.cross) dtpUp.cross += dtpUp.cross - passedCross;
         passed = { main: 0, cross: 0 };
         idx = { ...correctIdx };
-        while (passed.main < Math.ceil(dtp.main / 2) && idx.main >= 0) {
+        while (passed.main < dtpUp.main && idx.main >= 0) {
             let mainSize = 0;
-            while (passed.cross < Math.ceil(dtp.cross / 2) && idx.cross >= 0) {
+            while (passed.cross < dtpUp.cross && idx.cross >= 0) {
                 const size = getItemSize(items.at(idx.main).at(idx.cross), idx.main, idx.cross);
                 if (idx.cross !== correctIdx.cross) passed.cross += size.cross;
                 mainSize = mainSize > size.main ? mainSize : size.main;
                 crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
-                if (passed.cross < Math.ceil(dtp.cross / 2)) {
+                if (passed.cross < dtpUp.cross) {
                     idx.cross--;
                 }
             }
@@ -1592,7 +1575,7 @@ export const initGridPositions = <T>({
                 totalpassed.main += mainSize; // cause we already counted correctIdx passed distance in the while loop above
                 passed.main += mainSize;
             }
-            if (passed.main < Math.ceil(dtp.main / 2)) {
+            if (passed.main < dtpUp.main) {
                 idx.main--;
                 idx.cross = correctIdx.cross;
             }

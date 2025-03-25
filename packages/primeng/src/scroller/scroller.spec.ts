@@ -39,21 +39,25 @@ fdescribe('mytest', () => {
         findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top);
 
     const getFirstInViewportGrid = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
-        findByBoundingClientRect(
-            getRenderedItemsGrid(fixture),
-            scrollerDiv,
-            (itemRect, viewportRect) => itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top && itemRect.left <= viewportRect.left && itemRect.right > viewportRect.left
-        );
+        findByBoundingClientRect(getRenderedItemsGrid(fixture), scrollerDiv, (itemRect, viewportRect) => {
+            const scrollBar = {
+                cross: scrollerDiv.offsetHeight - scrollerDiv.clientHeight,
+                main: scrollerDiv.offsetWidth - scrollerDiv.clientWidth
+            };
+            return itemRect.top <= viewportRect.top - scrollBar.cross && itemRect.bottom > viewportRect.top - scrollBar.cross && itemRect.left <= viewportRect.left - scrollBar.main && itemRect.right > viewportRect.left - scrollBar.main;
+        });
 
     const getLastInViewport = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
         findByBoundingClientRect(getRenderedItems(fixture), scrollerDiv, (itemRect, viewportRect) => itemRect.top <= viewportRect.bottom && itemRect.bottom >= viewportRect.bottom);
 
     const getLastInViewportGrid = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
-        findByBoundingClientRect(
-            getRenderedItemsGrid(fixture),
-            scrollerDiv,
-            (itemRect, viewportRect) => itemRect.top <= viewportRect.bottom && itemRect.bottom >= viewportRect.bottom && itemRect.left <= viewportRect.right && itemRect.right >= viewportRect.right
-        );
+        findByBoundingClientRect(getRenderedItemsGrid(fixture), scrollerDiv, (itemRect, viewportRect) => {
+            const scrollBar = {
+                cross: scrollerDiv.offsetHeight - scrollerDiv.clientHeight,
+                main: scrollerDiv.offsetWidth - scrollerDiv.clientWidth
+            };
+            return itemRect.top <= viewportRect.bottom - scrollBar.cross && itemRect.bottom >= viewportRect.bottom - scrollBar.cross && itemRect.left <= viewportRect.right - scrollBar.main && itemRect.right >= viewportRect.right - scrollBar.main;
+        });
 
     const getBoundaryViewportItems = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) => ({ lastInViewport: getLastInViewport(fixture, scrollerDiv), firstInViewport: getFirstInViewport(fixture, scrollerDiv) });
 
@@ -394,7 +398,6 @@ fdescribe('mytest', () => {
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
-            console.log({ firstInViewport });
 
             expect(scroller.last).toEqual({ rows: idx.main + 1, cols: idx.cross + 1 });
             expect(firstInViewport).toBeTruthy();
@@ -542,6 +545,52 @@ fdescribe('mytest', () => {
                     { size: 40, pos: 240 }
                 ]
             });
+        });
+
+        it('should calculate a [1000,1000] positions', () => {
+            const { positions, updateByIndex } = initGridPositions({ items: getItems(1000, 1000), scrollerEl: { scrollTop: 0, scrollLeft: 0 }, getItemSize: () => ({ main: 50, cross: 100 }), viewportSize: { main: 200, cross: 200 } });
+            updateByIndex(-1, -1);
+
+            expect(positions.mainAxis.slice(0, 10)).toEqual([
+                { size: 50, pos: 0 },
+                { size: 50, pos: 50 },
+                { size: 50, pos: 100 },
+                { size: 50, pos: 150 },
+                { size: 50, pos: 200 },
+                { size: 50, pos: 250 },
+                { size: 50, pos: 300 },
+                { size: 50, pos: 350 },
+                { size: 40, pos: 400 },
+                { size: 40, pos: 440 }
+            ]);
+            expect(positions.mainAxis.slice(-10)).toEqual([
+                { size: 40, pos: 39680 },
+                { size: 40, pos: 39720 },
+                { size: 50, pos: 39760 },
+                { size: 50, pos: 39810 },
+                { size: 50, pos: 39860 },
+                { size: 50, pos: 39910 },
+                { size: 50, pos: 39960 },
+                { size: 50, pos: 40010 },
+                { size: 50, pos: 40060 },
+                { size: 50, pos: 40110 }
+            ]);
+            expect(positions.crossAxis.slice(0, 6)).toEqual([
+                { size: 100, pos: 0 },
+                { size: 100, pos: 100 },
+                { size: 100, pos: 200 },
+                { size: 100, pos: 300 },
+                { size: 40, pos: 400 },
+                { size: 40, pos: 440 }
+            ]);
+            expect(positions.crossAxis.slice(-6)).toEqual([
+                { size: 40, pos: 40000 },
+                { size: 40, pos: 40040 },
+                { size: 100, pos: 40080 },
+                { size: 100, pos: 40180 },
+                { size: 100, pos: 40280 },
+                { size: 100, pos: 40380 }
+            ]);
         });
 
         it('should calculate positions at the bottom', () => {
