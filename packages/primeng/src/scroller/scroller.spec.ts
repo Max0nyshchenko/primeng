@@ -388,7 +388,7 @@ fdescribe('mytest', () => {
             scrollerDiv = scroller.elementViewChild.nativeElement;
         });
 
-        fit('should scrollToIndex of the last index with itemSize equals to [50,100]', () => {
+        it('should scrollToIndex of the last index with itemSize equals to [50,100]', () => {
             const idx = { main: component.items.length - 1, cross: component.items.at(0).length - 1 };
             scroller.scrollToIndex([idx.main, idx.cross]);
             scrollerDiv.dispatchEvent(new Event('scroll'));
