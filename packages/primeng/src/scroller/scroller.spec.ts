@@ -29,7 +29,11 @@ fdescribe('mytest', () => {
             .queryAll(By.css('.p-virtualscroller-content div'))
             .map((x) => x.nativeElement)
             .filter((x) => x instanceof HTMLElement);
-    const getRenderedItemsGrid = <T>(fixture: ComponentFixture<T>) => getRenderedItems(fixture).flatMap((parent) => [...parent.children].filter((x) => x instanceof HTMLElement));
+    const getRenderedItemsGrid = <T>(fixture: ComponentFixture<T>) =>
+        fixture.debugElement.queryAll(By.css('.p-virtualscroller-content div div')).reduce((acc, x) => {
+            if (x.nativeElement instanceof HTMLElement) acc.push(x.nativeElement);
+            return acc;
+        }, []);
 
     const findByBoundingClientRect = (items: HTMLElement[], scrollerDiv: HTMLDivElement, predicate: (itemRect: DOMRect, viewportRect: DOMRect, index: number) => boolean) => {
         return items.find((x, i) => predicate(x.getBoundingClientRect(), scrollerDiv.getBoundingClientRect(), i));
@@ -403,6 +407,33 @@ fdescribe('mytest', () => {
             expect(firstInViewport).toBeTruthy();
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(idx.main).at(idx.cross));
         });
+
+        it('should scrollToIndex of the middle index with itemSize equals to [50,100]', () => {
+            const itemIdx = { main: component.items.length / 2, cross: component.items.at(0).length / 2 };
+            scroller.scrollToIndex([itemIdx.main, itemIdx.cross]);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            console.log({ first: scroller.first, last: scroller.last });
+            //const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+
+            expect(scroller.first).not.toBe(0);
+            //expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
+            //expect(lastInViewport).toBeTruthy();
+        });
+
+        it('should scrollToIndex of the last index with itemSize equals to [5,10]', () => {
+            component.itemSize = [5, 10];
+            fixture.detectChanges();
+            const itemIdx = { main: component.items.length - 1, cross: component.items.at(0).length - 1 };
+            scroller.scrollToIndex([itemIdx.main, itemIdx.cross]);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+
+            expect(scroller.last).toEqual({ rows: component.items.length, cols: component.items.at(0).length });
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
+        });
     });
 
     describe('initPositions', () => {
@@ -591,6 +622,74 @@ fdescribe('mytest', () => {
                 { size: 100, pos: 40280 },
                 { size: 100, pos: 40380 }
             ]);
+        });
+
+        it('should updateByIndex(499,499)', () => {
+            const { positions, updateByIndex } = initGridPositions({
+                items: getItems(1000, 1000),
+                scrollerEl: { scrollTop: 0, scrollLeft: 0 },
+                getItemSize: () => ({ main: 50, cross: 100 }),
+                viewportSize: { main: 200, cross: 200 }
+            });
+            updateByIndex(499, 499);
+
+            expect(positions.mainAxis.slice(494, 509)).toEqual([
+                { size: 40, pos: 19840 },
+                { size: 50, pos: 19880 },
+                { size: 50, pos: 19930 },
+                { size: 50, pos: 19980 },
+                { size: 50, pos: 20030 },
+                { size: 50, pos: 20080 },
+                { size: 50, pos: 20130 },
+                { size: 50, pos: 20180 },
+                { size: 50, pos: 20230 },
+                { size: 50, pos: 20280 },
+                { size: 50, pos: 20330 },
+                { size: 50, pos: 20380 },
+                { size: 50, pos: 20430 },
+                { size: 40, pos: 20480 },
+                { size: 40, pos: 20520 }
+            ]);
+            expect(positions.crossAxis.slice(496, 505)).toEqual([
+                { size: 40, pos: 20080 },
+                { size: 100, pos: 20120 },
+                { size: 100, pos: 20220 },
+                { size: 100, pos: 20320 },
+                { size: 100, pos: 20420 },
+                { size: 100, pos: 20520 },
+                { size: 100, pos: 20620 },
+                { size: 40, pos: 20720 },
+                { size: 40, pos: 20760 }
+            ]);
+        });
+
+        it('should calculate first', () => {
+            const { getFirst, positions } = initGridPositions({
+                items: getItems(1000, 1000),
+                scrollerEl: { scrollTop: 19960, scrollLeft: 19960 },
+                getItemSize: () => ({ main: 50, cross: 100 }),
+                viewportSize: { main: 200, cross: 200 }
+            });
+
+            const expectedFirst = { main: 495, cross: 497 };
+            expect(getFirst({ main: 0, cross: 0 })).toEqual(expectedFirst);
+            expect(positions.mainAxis[expectedFirst.main].size).toBe(50);
+            expect(positions.crossAxis[expectedFirst.cross].size).toBe(100);
+        });
+
+        it('should calculate last', () => {
+            const { getLast, positions } = initGridPositions({
+                items: getItems(1000, 1000),
+                scrollerEl: { scrollTop: 19960, scrollLeft: 19960 },
+                getItemSize: () => ({ main: 50, cross: 100 }),
+                viewportSize: { main: 200, cross: 200 }
+            });
+
+            const first = { main: 495, cross: 497 };
+            const expectedLast = { main: 506, cross: 502 };
+            expect(getLast(first)).toEqual(expectedLast);
+            expect(positions.mainAxis[expectedLast.main].size).toBe(50);
+            expect(positions.crossAxis[expectedLast.cross].size).toBe(100);
         });
 
         it('should calculate positions at the bottom', () => {
