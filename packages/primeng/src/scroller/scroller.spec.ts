@@ -429,6 +429,42 @@ fdescribe('mytest', () => {
             expect(firstInViewport).toBeTruthy();
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
         });
+
+        xit('should scrollToIndex of the middle index with itemSize equals to [5,10]', () => {
+            component.itemSize = [5, 10];
+            fixture.detectChanges();
+            const itemIdx = { main: component.items.length / 2, cross: component.items.at(0).length / 2 };
+            scroller.scrollToIndex([itemIdx.main, itemIdx.cross]);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(scroller.first).not.toBe(0);
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
+            expect(lastInViewport).toBeTruthy();
+        });
+
+        xit('should scrollTo the bottom with itemSize equals to 50', () => {
+            scroller.scrollTo({ top: scroller._poss.totalSize().main });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(scroller.last).toBe(scroller.items.length);
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
+        });
+
+        xit('should scrollTo the middle with itemSize equals to 50', () => {
+            scroller.scrollTo({ top: scroller._poss.totalSize().main / 2 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
+
+            expect(scroller.first).not.toBe(0);
+            expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport).toBeTruthy();
+        });
     });
 
     describe('initPositions', () => {

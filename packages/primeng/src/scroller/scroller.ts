@@ -1492,7 +1492,7 @@ type InitGridPositions = {
     getLast: (first: GridItem) => GridItem;
 };
 export const initGridPositions = <T>({
-    items,
+    items: propItems,
     getItemSize,
     viewportSize,
     scrollerEl,
@@ -1504,19 +1504,20 @@ export const initGridPositions = <T>({
     scrollerEl: { scrollTop: number; scrollLeft: number };
     onChange?: (changes: { jump: GridItem; totalSizeDiff: GridItem }) => void;
 }): InitGridPositions => {
-    if (!isGrid(items))
-        return initPositions({
-            items,
-            getItemSize: (x, idx) => getItemSize(x, idx, 0).main,
-            viewportSize: viewportSize.main,
-            scrollerEl,
-            onChange
-        });
+    //if (!isGrid(items))
+    //    return initPositions({
+    //        items,
+    //        getItemSize: (x, idx) => getItemSize(x, idx, 0).main,
+    //        viewportSize: viewportSize.main,
+    //        scrollerEl,
+    //        onChange
+    //    });
+    const items = !isGrid(propItems) ? propItems.map((x) => [x]) : propItems;
 
     const positions = getInitGridPositions(items);
     const calcPositions = {
-        mainAxis: positions.mainAxis.map((x) => false),
-        crossAxis: positions.crossAxis.map((x) => false)
+        mainAxis: positions.mainAxis.map(() => false),
+        crossAxis: positions.crossAxis.map(() => false)
     };
 
     const updateByIndex = (mainIdx: number, crossIdx: number = 0) => {
@@ -1582,7 +1583,7 @@ export const initGridPositions = <T>({
         }
         idx = { main: Math.max(0, idx.main), cross: Math.max(0, idx.cross) };
         totalpassed.cross += Object.values(crossAxisPositionsMap).reduce((a, b) => a + b, 0);
-        //crossAxisPositionsMap = {};
+        if (!totalpassed.cross) totalpassed.cross = 1;
         passed = { main: 0, cross: 0 };
         const iniCrossIdx = idx.cross;
         let currPos = { main: positions.mainAxis.at(idx.main).pos, cross: positions.crossAxis.at(idx.cross).pos };
@@ -1704,8 +1705,8 @@ export const initGridPositions = <T>({
             main: binarySearchFirst(Math.max(scrollerEl.scrollTop - viewportSize.main, 0), positions.mainAxis),
             cross: binarySearchFirst(Math.max(scrollerEl.scrollLeft - viewportSize.cross, 0), positions.crossAxis)
         };
-        while (!calcPositions.mainAxis[newFirst.main] && newFirst.main < positions.mainAxis.length) newFirst.main++;
-        while (!calcPositions.crossAxis[newFirst.cross] && newFirst.cross < positions.crossAxis.length) newFirst.cross++;
+        while (!calcPositions.mainAxis[newFirst.main] && newFirst.main < viewport.last.main) newFirst.main++;
+        while (!calcPositions.crossAxis[newFirst.cross] && newFirst.cross < viewport.last.cross) newFirst.cross++;
 
         return {
             main: Math.abs(first.main - newFirst.main) > viewport.tolerated.main ? newFirst.main : first.main,
@@ -1722,8 +1723,8 @@ export const initGridPositions = <T>({
             main: binarySearchFirst(Math.min(firstPos.main + viewportSize.main * 3, totalSize().main), positions.mainAxis),
             cross: binarySearchFirst(Math.min(firstPos.cross + viewportSize.cross * 3, totalSize().cross), positions.crossAxis)
         };
-        while (!calcPositions.mainAxis[newLast.main] && newLast.main > 0) newLast.main--;
-        while (!calcPositions.crossAxis[newLast.cross] && newLast.cross > 0) newLast.cross--;
+        while (!calcPositions.mainAxis[newLast.main] && newLast.main > first.main) newLast.main--;
+        while (!calcPositions.crossAxis[newLast.cross] && newLast.cross > first.cross) newLast.cross--;
 
         return newLast;
     };
@@ -1734,6 +1735,7 @@ export const initGridPositions = <T>({
             cross: binarySearchFirst(scrollerEl.scrollLeft, positions.crossAxis)
         };
         updateByIndex(idx.main, idx.cross);
+        console.log('calc pos', { idx, positions: JSON.parse(JSON.stringify(positions.mainAxis)) });
     }
 
     return { positions, getFirst, getLast, updateByIndex, at, updateByScrollPos, numsInViewport, totalSize };
