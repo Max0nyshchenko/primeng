@@ -708,7 +708,6 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
 
     init() {
         if (!this._disabled) {
-            console.log('init');
             this._poss = initGridPositions({
                 items: this.items,
                 viewportSize: {

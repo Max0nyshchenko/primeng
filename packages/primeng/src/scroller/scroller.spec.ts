@@ -44,11 +44,7 @@ fdescribe('mytest', () => {
 
     const getFirstInViewportGrid = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
         findByBoundingClientRect(getRenderedItemsGrid(fixture), scrollerDiv, (itemRect, viewportRect) => {
-            const scrollBar = {
-                cross: scrollerDiv.offsetHeight - scrollerDiv.clientHeight,
-                main: scrollerDiv.offsetWidth - scrollerDiv.clientWidth
-            };
-            return itemRect.top <= viewportRect.top - scrollBar.cross && itemRect.bottom > viewportRect.top - scrollBar.cross && itemRect.left <= viewportRect.left - scrollBar.main && itemRect.right > viewportRect.left - scrollBar.main;
+            return itemRect.top <= viewportRect.top && itemRect.bottom > viewportRect.top && itemRect.left <= viewportRect.left && itemRect.right > viewportRect.left;
         });
 
     const getLastInViewport = <T>(fixture: ComponentFixture<T>, scrollerDiv: HTMLDivElement) =>
@@ -413,12 +409,11 @@ fdescribe('mytest', () => {
             scroller.scrollToIndex([itemIdx.main, itemIdx.cross]);
             scrollerDiv.dispatchEvent(new Event('scroll'));
 
-            console.log({ first: scroller.first, last: scroller.last });
-            //const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
 
             expect(scroller.first).not.toBe(0);
-            //expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
-            //expect(lastInViewport).toBeTruthy();
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
+            expect(lastInViewport).toBeTruthy();
         });
 
         it('should scrollToIndex of the last index with itemSize equals to [5,10]', () => {
