@@ -1,10 +1,10 @@
-import { Component, Type } from '@angular/core';
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { binarySearchFirst, initGridPositions, initPositions, Scroller } from './scroller';
-import { BrowserModule, By } from '@angular/platform-browser';
+import { binarySearchFirst, initGridPositions, Scroller } from './scroller';
+import { By } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
-import { BrowserAnimationsModule, NoopAnimationsModule, provideAnimations } from '@angular/platform-browser/animations';
-import { debounce, debounceTime, first, fromEvent, lastValueFrom, map, of, switchMap, take, tap } from 'rxjs';
+import { provideAnimations } from '@angular/platform-browser/animations';
+import { debounceTime, first, fromEvent, lastValueFrom, tap } from 'rxjs';
 
 fdescribe('mytest', () => {
     @Component({
@@ -479,126 +479,6 @@ fdescribe('mytest', () => {
             expect(scroller.first).not.toEqual({ rows: 0, cols: 0 });
             expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
             expect(lastInViewport).toBeTruthy();
-        });
-    });
-
-    describe('initPositions', () => {
-        const getItems = (len: number = 5) => Array.from({ length: len }, (_, idx) => `Item #${idx}`);
-        it('should create positions', () => {
-            const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 50, viewportSize: 200 });
-
-            expect(positions.positions).toEqual({
-                mainAxis: [
-                    { size: 50, pos: 0 },
-                    { size: 50, pos: 50 },
-                    { size: 50, pos: 100 },
-                    { size: 50, pos: 150 },
-                    { size: 50, pos: 200 },
-                    { size: 50, pos: 250 },
-                    { size: 50, pos: 300 },
-                    { size: 50, pos: 350 },
-                    { size: 40, pos: 400 },
-                    { size: 40, pos: 440 }
-                ],
-                crossAxis: []
-            });
-        });
-
-        it('should calculate positions at the bottom', () => {
-            const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            positions.updateByIndex(-1);
-
-            expect(positions.positions).toEqual({
-                mainAxis: [
-                    { size: 200, pos: 0 },
-                    { size: 200, pos: 200 },
-                    { size: 40, pos: 400 },
-                    { size: 40, pos: 440 },
-                    { size: 40, pos: 480 },
-                    { size: 40, pos: 520 },
-                    { size: 40, pos: 560 },
-                    { size: 40, pos: 600 },
-                    { size: 200, pos: 640 },
-                    { size: 200, pos: 840 }
-                ],
-                crossAxis: []
-            });
-        });
-
-        it('should calculate positions at the middle', () => {
-            const positions = initPositions({ items: getItems(10), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            positions.updateByIndex(4);
-
-            expect(positions.positions).toEqual({
-                mainAxis: [
-                    { size: 200, pos: 0 },
-                    { size: 200, pos: 200 },
-                    { size: 40, pos: 400 },
-                    { size: 200, pos: 440 },
-                    { size: 200, pos: 640 },
-                    { size: 200, pos: 840 },
-                    { size: 40, pos: 1040 },
-                    { size: 40, pos: 1080 },
-                    { size: 40, pos: 1120 },
-                    { size: 40, pos: 1160 }
-                ],
-                crossAxis: []
-            });
-        });
-
-        it('should calculate real positions and adjust leftover positions from top down', () => {
-            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            positions.updateByIndex(1);
-
-            expect(positions.positions).toEqual({
-                mainAxis: [
-                    { size: 200, pos: 0 },
-                    { size: 200, pos: 200 },
-                    { size: 40, pos: 400 },
-                    { size: 40, pos: 440 },
-                    { size: 40, pos: 480 }
-                ],
-                crossAxis: []
-            });
-        });
-
-        it('should calculate real positions and adjust leftover positions from bottom up', () => {
-            const positions = initPositions({ items: getItems(), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            positions.updateByIndex(-1);
-
-            expect(positions.positions).toEqual({
-                mainAxis: [
-                    { size: 200, pos: 0 },
-                    { size: 200, pos: 200 },
-                    { size: 40, pos: 400 },
-                    { size: 200, pos: 440 },
-                    { size: 200, pos: 640 }
-                ],
-                crossAxis: []
-            });
-        });
-
-        it('should calculate correct jumps', () => {
-            let actualJump: { main: number; cross: number };
-            const scrollerEl = { scrollTop: 0 };
-            const positions = initPositions({ items: getItems(100), scrollerEl, getItemSize: () => 200, viewportSize: 200, onChange: ({ jump }) => (actualJump = jump) });
-            const itemIdx = 50;
-            const positionBefore = positions.positions.mainAxis.at(itemIdx).pos;
-            scrollerEl.scrollTop = positionBefore;
-            positions.at(25);
-            const expectedJump = positions.positions.mainAxis.at(itemIdx).pos - positionBefore;
-
-            expect(actualJump.main).toBe(expectedJump);
-        });
-
-        it('should be pure', () => {
-            const positions = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            const positions2 = initPositions({ items: getItems(100), scrollerEl: { scrollTop: 0 }, getItemSize: () => 200, viewportSize: 200 });
-            const idx = 25;
-            positions.at(idx);
-            positions2.at(idx);
-
-            expect(positions.positions).toEqual(positions2.positions);
         });
     });
 
