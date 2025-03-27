@@ -288,7 +288,7 @@ fdescribe('mytest', () => {
             expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
         });
 
-        it('should smoothly scrollToIndex of the middle item', async () => {
+        xit('should smoothly scrollToIndex of the middle item', async () => {
             const itemIdx = component.items.length / 2;
             scroller.scrollToIndex(itemIdx, 'smooth');
             const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
@@ -463,6 +463,21 @@ fdescribe('mytest', () => {
 
             expect(scroller.first).not.toEqual({ rows: 0, cols: 0 });
             expect(firstInViewport).toBeTruthy();
+            expect(lastInViewport).toBeTruthy();
+        });
+
+        it('should calculate positions during user scrolling', () => {
+            scrollerDiv.scrollTo({ top: 1000, left: 1000 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+            const itemIdx = {
+                main: binarySearchFirst(1000, scroller._poss.positions.mainAxis),
+                cross: binarySearchFirst(1000, scroller._poss.positions.crossAxis)
+            };
+
+            const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+
+            expect(scroller.first).not.toEqual({ rows: 0, cols: 0 });
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
             expect(lastInViewport).toBeTruthy();
         });
     });

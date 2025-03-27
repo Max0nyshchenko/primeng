@@ -1242,112 +1242,6 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
     private isBoth(items: typeof this.items): items is unknown[][] {
         return this.both && items.length && Array.isArray(items[0]);
     }
-
-    private binarySearchFirst(pos: number, positions: ItemPos[]): number {
-        let left = 0,
-            right = positions.length,
-            prevMiddle = 0;
-        while (true) {
-            const middle = Math.floor((left + right) / 2);
-            const currPos = positions[middle];
-            const nextPos = positions[middle + 1];
-
-            if (currPos === undefined || nextPos === undefined || currPos.pos === pos || (currPos.pos < pos && nextPos.pos > pos) || middle === prevMiddle) return middle;
-            if (pos < currPos.pos) right = middle;
-            else left = middle;
-            prevMiddle = middle;
-        }
-    }
-
-    //private calculatedPos: { main: Range; cross: Range } = { main: new Range(0, 0), cross: new Range(0, 0) };
-    //private getFirstInViewport<T>(mainScrollPos: number, crossScrollPos?: T): T extends number ? { firstRowIdx: number; firstColIdx: number } : number {
-    //    if (typeof crossScrollPos === 'number' && this.isBoth(this._items)) {
-    //        const firstRowIdx = this.binarySearchFirst(mainScrollPos, this._itemsPositions.mainAxis);
-    //        const firstColIdx = this.binarySearchFirst(crossScrollPos, this._itemsPositions.crossAxis);
-
-    //        const mergeStartIdx = Math.max(0, firstRowIdx - 100);
-    //        const mergeEndIdx = Math.min(this._itemsPositions.mainAxis.length - 1, firstRowIdx + 100);
-    //        const crossMergeStartIdx = Math.max(0, firstColIdx - 100);
-    //        const crossMergeEndIdx = Math.min(this._itemsPositions.crossAxis.length - 1, firstColIdx + 100);
-
-    //        const calculatedGridPositions = calculateGridPositions(
-    //            this._items.slice(mergeStartIdx, mergeEndIdx + 1).map((slice) => slice.slice(crossMergeStartIdx, crossMergeEndIdx + 1)),
-    //            this._getItemSize.bind(this)
-    //        );
-
-    //        this._itemsPositions = mergeGridPositions(this._itemsPositions, calculatedGridPositions, { mainAxis: mergeStartIdx, crossAxis: crossMergeStartIdx });
-    //        const updatedFirstRowIdx = this.binarySearchFirst(mainScrollPos, this._itemsPositions.mainAxis);
-    //        const updatedFirstColIdx = this.binarySearchFirst(crossScrollPos, this._itemsPositions.crossAxis);
-    //        this.setSpacerSize();
-
-    //        return { firstRowIdx: updatedFirstRowIdx, firstColIdx: updatedFirstColIdx } as T extends number ? { firstRowIdx: number; firstColIdx: number } : number;
-    //    } else {
-    //        const firstRowIdx = this.binarySearchFirst(mainScrollPos, this._itemsPositions.mainAxis);
-
-    //        const mergeStartIdx = Math.max(0, firstRowIdx - 100);
-    //        const mergeEndIdx = Math.min(this._itemsPositions.mainAxis.length - 1, mergeStartIdx + 200);
-
-    //        const calculatedPositions = calculatePositions(this._items.slice(mergeStartIdx, mergeEndIdx + 1), (i, idx, xidx) => this._getItemSize(i, idx, xidx).mainAxis);
-    //        this._itemsPositions.mainAxis = mergePositions(this._itemsPositions.mainAxis, calculatedPositions, mergeStartIdx);
-    //        const updatedFirstRowIdx = this.binarySearchFirst(mainScrollPos, this._itemsPositions.mainAxis);
-    //        this.setSpacerSize();
-
-    //        return updatedFirstRowIdx as T extends number ? { firstRowIdx: number; firstColIdx: number } : number;
-    //    }
-    //}
-
-    //private recalculateSize(limits: { x: { start: number; end: number }; y: { start: number; end: number } }) {
-    //    if (typeof this._getItemSize !== 'function' || !this._items) return;
-
-    //    const itemsLength = this._items.length;
-    //    this._itemsPositions.mainAxis = Array.from({ length: itemsLength });
-
-    //    const mainAxisDefaultSize = 40;
-    //    const crossAxisDefaultSize = 50;
-    //    let i = -1,
-    //        mainAxisPos = 0;
-    //    if (this.isBoth(this._items)) {
-    //        const crossAxisPositionsMap: Record<number, number> = {};
-    //        while (++i < itemsLength) {
-    //            let maxRowHeight = 0;
-
-    //            let j = -1,
-    //                childItemLength = this._items[i].length,
-    //                crossAxisPos = 0;
-    //            while (++j < childItemLength) {
-    //                const size = i < limits.y.start || i > limits.y.end || j < limits.x.start || j > limits.x.end ? { mainAxis: mainAxisDefaultSize, crossAxis: crossAxisDefaultSize } : this._getItemSize(this._items[i][j], i, j);
-    //                crossAxisPositionsMap[j] = crossAxisPos > (crossAxisPositionsMap[j] ?? 0) ? crossAxisPos : (crossAxisPositionsMap[j] ?? 0);
-    //                crossAxisPos += size.crossAxis || 0;
-    //                maxRowHeight = size.mainAxis > maxRowHeight ? size.mainAxis : maxRowHeight;
-    //            }
-    //            //this._itemsPositions.mainAxis[i] = mainAxisPos;
-    //            mainAxisPos += maxRowHeight;
-    //        }
-    //        //this._itemsPositions.crossAxis = Object.values(crossAxisPositionsMap);
-    //    } else {
-    //        while (++i < itemsLength) {
-    //            const size = i < limits.y.start || i > limits.y.end ? { mainAxis: mainAxisDefaultSize } : this._getItemSize(this._items[i], i, 0);
-    //            //this._itemsPositions.mainAxis[i] = mainAxisPos;
-    //            mainAxisPos += size.mainAxis;
-    //        }
-    //    }
-    //}
-
-    //private getNumItemsInViewport<T>(viewportMainAxisSize: number, scrollMainAxisPos: number, viewportCrossAxisSize?: T, scrollCrossAxisPos?: T): T extends number ? { cols: number; rows: number } : number {
-    //    if (typeof viewportCrossAxisSize === 'number' && typeof scrollCrossAxisPos === 'number') {
-    //        const first = this.getFirstInViewport(scrollMainAxisPos, scrollCrossAxisPos);
-    //        const last = this.getFirstInViewport(scrollMainAxisPos + viewportMainAxisSize, scrollCrossAxisPos + viewportCrossAxisSize);
-    //        return { cols: last.firstColIdx - first.firstColIdx + 1, rows: last.firstRowIdx - first.firstRowIdx + 1 } as T extends number ? { cols: number; rows: number } : number;
-    //    } else {
-    //        if (scrollMainAxisPos > this._itemsPositions.mainAxis.at(-1).pos) {
-    //            this.scrollTo({ top: this._itemsPositions.mainAxis.at(-1).pos });
-    //            scrollMainAxisPos = this._itemsPositions.mainAxis.at(-1).pos + this._itemsPositions.mainAxis.at(-1).size - viewportMainAxisSize;
-    //        }
-    //        const first = this.getFirstInViewport(scrollMainAxisPos);
-    //        const last = this.getFirstInViewport(scrollMainAxisPos + viewportMainAxisSize);
-    //        return (last - first + 1) as T extends number ? { cols: number; rows: number } : number;
-    //    }
-    //}
 }
 
 export class Range {
@@ -1705,6 +1599,7 @@ export const initGridPositions = <T>({
             main: binarySearchFirst(Math.max(scrollerEl.scrollTop - viewportSize.main, 0), positions.mainAxis),
             cross: binarySearchFirst(Math.max(scrollerEl.scrollLeft - viewportSize.cross, 0), positions.crossAxis)
         };
+        if (!calcPositions.mainAxis[viewport.last.main] || !calcPositions.crossAxis[viewport.last.cross]) updateByIndex(viewport.first.main, viewport.first.cross);
         while (!calcPositions.mainAxis[newFirst.main] && newFirst.main < viewport.last.main) newFirst.main++;
         while (!calcPositions.crossAxis[newFirst.cross] && newFirst.cross < viewport.last.cross) newFirst.cross++;
 
@@ -1735,7 +1630,6 @@ export const initGridPositions = <T>({
             cross: binarySearchFirst(scrollerEl.scrollLeft, positions.crossAxis)
         };
         updateByIndex(idx.main, idx.cross);
-        console.log('calc pos', { idx, positions: JSON.parse(JSON.stringify(positions.mainAxis)) });
     }
 
     return { positions, getFirst, getLast, updateByIndex, at, updateByScrollPos, numsInViewport, totalSize };
