@@ -1471,13 +1471,13 @@ export const initGridPositions = <T>({
 
     const getFirst = (first: GridItem): GridItem => {
         const viewport = numsInViewport();
+        if (!calcPositions.mainAxis[viewport.first.main] || !calcPositions.crossAxis[viewport.first.cross]) updateByIndexWithEvents({ main: viewport.first.main, cross: viewport.first.cross });
         const newFirst = {
             main: binarySearchFirst(Math.max(scrollerEl.scrollTop - viewportSize.main, 0), positions.mainAxis),
             cross: binarySearchFirst(Math.max(scrollerEl.scrollLeft - viewportSize.cross, 0), positions.crossAxis)
         };
-        if (!calcPositions.mainAxis[viewport.last.main] || !calcPositions.crossAxis[viewport.last.cross]) updateByIndex(viewport.first.main, viewport.first.cross);
-        while (!calcPositions.mainAxis[newFirst.main] && newFirst.main < viewport.last.main) newFirst.main++;
-        while (!calcPositions.crossAxis[newFirst.cross] && newFirst.cross < viewport.last.cross) newFirst.cross++;
+        while (!calcPositions.mainAxis[newFirst.main] && newFirst.main < viewport.first.main) newFirst.main++;
+        while (!calcPositions.crossAxis[newFirst.cross] && newFirst.cross < viewport.first.cross) newFirst.cross++;
 
         return {
             main: Math.abs(first.main - newFirst.main) > viewport.tolerated.main ? newFirst.main : first.main,
@@ -1486,16 +1486,19 @@ export const initGridPositions = <T>({
     };
 
     const getLast = (first: GridItem): GridItem => {
+        const viewport = numsInViewport();
         const firstPos = {
             main: positions.mainAxis.at(first.main).pos,
             cross: positions.crossAxis.at(first.cross).pos
         };
+        const { main: totalMainSize, cross: totalCrossSize } = totalSize();
         const newLast = {
-            main: binarySearchFirst(Math.min(firstPos.main + viewportSize.main * 3, totalSize().main), positions.mainAxis),
-            cross: binarySearchFirst(Math.min(firstPos.cross + viewportSize.cross * 3, totalSize().cross), positions.crossAxis)
+            main: binarySearchFirst(Math.min(firstPos.main + viewportSize.main * 3, totalMainSize), positions.mainAxis),
+            cross: binarySearchFirst(Math.min(firstPos.cross + viewportSize.cross * 3, totalCrossSize), positions.crossAxis)
         };
-        while (!calcPositions.mainAxis[newLast.main] && newLast.main > first.main) newLast.main--;
-        while (!calcPositions.crossAxis[newLast.cross] && newLast.cross > first.cross) newLast.cross--;
+        if (!calcPositions.mainAxis[viewport.last.main] || !calcPositions.crossAxis[viewport.last.cross]) updateByIndexWithEvents({ main: viewport.last.main, cross: viewport.last.cross });
+        while (!calcPositions.mainAxis[newLast.main] && newLast.main > viewport.last.main) newLast.main--;
+        while (!calcPositions.crossAxis[newLast.cross] && newLast.cross > viewport.last.cross) newLast.cross--;
 
         return newLast;
     };
