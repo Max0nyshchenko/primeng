@@ -693,7 +693,7 @@ export class Scroller extends BaseComponent implements OnInit, AfterContentInit,
                         return elViewChild.scrollLeft;
                     }
                 },
-                onChange: ({ jump, totalSizeDiff }) => {
+                onChange: ({ jump, scrollSizeDiff: totalSizeDiff }) => {
                     const scrollTop = this.elementViewChild?.nativeElement.scrollTop;
                     const scrollLeft = this.elementViewChild?.nativeElement.scrollLeft;
 
@@ -1222,7 +1222,7 @@ export const initGridPositions = <T>({
     getItemSize: (item: T, idxMain: number, idxCross: number) => GridItem;
     viewportSize: GridItem;
     scrollPos: GridItem;
-    onChange?: (changes: { jump: GridItem; totalSizeDiff: GridItem }) => void;
+    onChange?: (changes: { jump: GridItem; scrollSizeDiff: GridItem }) => void;
 }): {
     positions: GridPos;
     updateByIndex: (main: number, cross?: number) => void;
@@ -1367,21 +1367,17 @@ export const initGridPositions = <T>({
         return { idx, ...itemPositions[idx] };
     };
 
-    const updateByIndexWithChanges = (index: GridItem) => {
+    const _updateByIndexWithEvents = (index: GridItem) => {
         const mainItem = _getItemByScrollPos(scrollPos.main, positions.mainAxis);
         const crossItem = _getItemByScrollPos(scrollPos.cross, positions.crossAxis);
         const initTotalSize = totalSize();
         updateByIndex(index.main, index.cross);
         const updatedTotalSize = totalSize();
 
-        return {
+        const changes = {
             jump: { main: positions.mainAxis[mainItem.idx].pos - mainItem.pos, cross: positions.crossAxis[crossItem.idx].pos - crossItem.pos },
-            totalSizeDiff: { main: updatedTotalSize.main - initTotalSize.main, cross: updatedTotalSize.cross - initTotalSize.cross }
+            scrollSizeDiff: { main: updatedTotalSize.main - initTotalSize.main, cross: updatedTotalSize.cross - initTotalSize.cross }
         };
-    };
-
-    const _updateByIndexWithEvents = (index: GridItem) => {
-        const changes = updateByIndexWithChanges(index);
         if (Object.values(changes).some((x) => x.main || x.cross)) onChange(changes);
     };
 
