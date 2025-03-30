@@ -1250,17 +1250,6 @@ export const initGridPositions = <T>({
         crossAxis: positions.crossAxis.map(() => false)
     };
 
-    const _mapGrid = (grid: GridPos, cb: (x: ItemPos, mainIdx: number, crossIdx: number) => ItemPos) => {
-        let idx = { main: 0, cross: 0 };
-        while (idx.main < grid.mainAxis.length) {
-            while (idx.cross < grid.crossAxis.length) {
-                grid[idx.main][idx.cross] = cb(grid[idx.main][idx.cross], idx.main, idx.cross);
-                idx.cross++;
-            }
-            idx.main++;
-        }
-    };
-
     const _calculateSizesWithinDistance = (distance: GridItem, startIdx: GridItem, direction: 'forward' | 'backward') => {
         const step = direction === 'forward' ? 1 : -1;
         const adjustSize = (item: ItemPos, newSize: number, calculated: boolean) => (item.size = calculated ? Math.max(item.size, newSize) : newSize);
