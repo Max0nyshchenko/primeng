@@ -1250,111 +1250,64 @@ export const initGridPositions = <T>({
         crossAxis: positions.crossAxis.map(() => false)
     };
 
+    const _mapGrid = (grid: GridPos, cb: (x: ItemPos, mainIdx: number, crossIdx: number) => ItemPos) => {
+        let idx = { main: 0, cross: 0 };
+        while (idx.main < grid.mainAxis.length) {
+            while (idx.cross < grid.crossAxis.length) {
+                grid[idx.main][idx.cross] = cb(grid[idx.main][idx.cross], idx.main, idx.cross);
+                idx.cross++;
+            }
+            idx.main++;
+        }
+    };
+
+    const _calculateSizesWithinDistance = (distance: GridItem, startIdx: GridItem, direction: 'forward' | 'backward') => {
+        const step = direction === 'forward' ? 1 : -1;
+        const adjustSize = (item: ItemPos, newSize: number, calculated: boolean) => (item.size = calculated ? Math.max(item.size, newSize) : newSize);
+        const inRange = (idx: number, positionsLength: number) => idx < positionsLength && idx >= 0;
+        const passedDistance = { main: 0, cross: 0 };
+        const idx = { main: startIdx.main, cross: startIdx.cross };
+        while (passedDistance.main < distance.main && inRange(idx.main, positions.mainAxis.length)) {
+            passedDistance.cross = 0;
+            idx.cross = startIdx.cross;
+            while (passedDistance.cross < distance.cross && inRange(idx.cross, positions.crossAxis.length)) {
+                const size = getItemSize(_items.at(idx.main).at(idx.cross), idx.main, idx.cross);
+                adjustSize(positions.mainAxis[idx.main], size.main, _calculatedIndexes.mainAxis[idx.main]);
+                adjustSize(positions.crossAxis[idx.cross], size.cross, _calculatedIndexes.crossAxis[idx.cross]);
+                _calculatedIndexes.mainAxis[idx.main] = _calculatedIndexes.crossAxis[idx.cross] = true;
+                passedDistance.cross += positions.crossAxis[idx.cross].size;
+                idx.cross += step;
+            }
+
+            passedDistance.main += positions.mainAxis[idx.main].size;
+            idx.main += step;
+        }
+
+        return {
+            distanceLeft: { main: Math.max(distance.main - passedDistance.main, 0), cross: Math.max(distance.cross - passedDistance.cross, 0) },
+            lastCalculatedIndex: { main: idx.main - step, cross: idx.cross - step }
+        };
+    };
+
+    const _updatePositions = (idx: number, positions: ItemPos[]) => {
+        while (idx < positions.length) {
+            const prevItem = positions[idx - 1] || { size: 0, pos: 0 };
+            positions[idx].pos = prevItem.pos + prevItem.size;
+            idx++;
+        }
+    };
+
     const updateByIndex = (mainIdx: number, crossIdx: number = 0) => {
-        const dtp = { main: viewportSize.main * 2, cross: viewportSize.cross * 2 };
-        const correctIdx = {
-            main: positions.mainAxis.indexOf(positions.mainAxis.at(mainIdx)),
-            cross: positions.crossAxis.indexOf(positions.crossAxis.at(crossIdx))
-        };
-
-        let passed = { main: 0, cross: 0 },
-            idx = { ...correctIdx },
-            totalpassed = { main: 0, cross: 0 };
-
-        let crossAxisPositionsMap: { [key: string]: number } = {};
-        let dtpUp = {
-            main: Math.ceil(dtp.main / 2),
-            cross: Math.ceil(dtp.cross / 2)
-        };
-        while (passed.main < dtp.main && idx.main < positions.mainAxis.length) {
-            let mainSize = 0;
-            while (passed.cross < dtp.cross && idx.cross < positions.crossAxis.length) {
-                const size = getItemSize(_items.at(idx.main).at(idx.cross), idx.main, idx.cross);
-                passed.cross += size.cross;
-                mainSize = mainSize > size.main ? mainSize : size.main;
-                crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
-                idx.cross++;
-            }
-
-            passed.cross = 0;
-            passed.main += mainSize;
-            totalpassed.main += mainSize;
-            idx.main++;
-            idx.cross = correctIdx.cross;
-            if (idx.main >= positions.mainAxis.length && passed.main < dtpUp.main) {
-                dtpUp.main += dtpUp.main - passed.main;
-            }
-        }
-        const passedCross = Object.values(crossAxisPositionsMap).reduce((acc, i) => acc + i, 0);
-        if (passedCross < dtpUp.cross) dtpUp.cross += dtpUp.cross - passedCross;
-        passed = { main: 0, cross: 0 };
-        idx = { ...correctIdx };
-        while (passed.main < dtpUp.main && idx.main >= 0) {
-            let mainSize = 0;
-            while (passed.cross < dtpUp.cross && idx.cross >= 0) {
-                const size = getItemSize(_items.at(idx.main).at(idx.cross), idx.main, idx.cross);
-                if (idx.cross !== correctIdx.cross) passed.cross += size.cross;
-                mainSize = mainSize > size.main ? mainSize : size.main;
-                crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > size.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : size.cross;
-                if (passed.cross < dtpUp.cross) {
-                    idx.cross--;
-                }
-            }
-
-            passed.cross = 0;
-            if (idx.main !== correctIdx.main) {
-                totalpassed.main += mainSize; // cause we already counted correctIdx passed distance in the while loop above
-                passed.main += mainSize;
-            }
-            if (passed.main < dtpUp.main) {
-                idx.main--;
-                idx.cross = correctIdx.cross;
-            }
-        }
-        idx = { main: Math.max(0, idx.main), cross: Math.max(0, idx.cross) };
-        totalpassed.cross += Object.values(crossAxisPositionsMap).reduce((a, b) => a + b, 0);
-        if (!totalpassed.cross) totalpassed.cross = 1;
-        passed = { main: 0, cross: 0 };
-        const iniCrossIdx = idx.cross;
-        let currPos = { main: positions.mainAxis.at(idx.main).pos, cross: positions.crossAxis.at(idx.cross).pos };
-        while (idx.main < positions.mainAxis.length) {
-            const calculatedSet = new Set();
-            let mainSize = 0;
-            while (idx.cross < positions.crossAxis.length) {
-                const calculated = passed.cross < totalpassed.cross && passed.main < totalpassed.main;
-                const itemSize = calculated ? getItemSize(_items.at(idx.main).at(idx.cross), idx.main, idx.cross) : { main: positions.mainAxis.at(idx.main).size, cross: positions.crossAxis.at(idx.cross).size };
-                if (calculated) {
-                    _calculatedIndexes.mainAxis[idx.main] = true;
-                    calculatedSet.add(idx.main);
-                    mainSize = mainSize > itemSize.main ? mainSize : itemSize.main;
-                    crossAxisPositionsMap[idx.cross] = (crossAxisPositionsMap[idx.cross] ?? 0) > itemSize.cross ? (crossAxisPositionsMap[idx.cross] ?? 0) : itemSize.cross;
-                }
-                idx.cross++;
-                passed.cross += itemSize.cross;
-            }
-            mainSize = calculatedSet.has(idx.main) ? mainSize : positions.mainAxis[idx.main].size;
-            positions.mainAxis[idx.main] = { size: mainSize, pos: currPos.main };
-
-            passed.cross = 0;
-            idx.cross = iniCrossIdx;
-            idx.main++;
-            currPos.main += mainSize;
-            passed.main += mainSize;
-        }
-        let cp = positions.crossAxis.at(+Object.keys(crossAxisPositionsMap).at(0)).pos;
-        let lastIdx = 0;
-        for (const i of Object.keys(crossAxisPositionsMap)) {
-            _calculatedIndexes.crossAxis[+i] = true;
-            positions.crossAxis[+i] = { size: crossAxisPositionsMap[i], pos: cp };
-            cp += crossAxisPositionsMap[i];
-            lastIdx = +i + 1;
-        }
-        while (lastIdx < positions.crossAxis.length) {
-            const size = positions.crossAxis[lastIdx].size;
-            positions.crossAxis[lastIdx] = { size, pos: cp };
-            cp += size;
-            lastIdx++;
-        }
+        const idx = { main: positions.mainAxis.indexOf(positions.mainAxis.at(mainIdx)), cross: positions.crossAxis.indexOf(positions.crossAxis.at(crossIdx)) };
+        const getBackwardDistance = (viewportSize: number, forwardDistanceLeft: number) => viewportSize + Math.max(forwardDistanceLeft - viewportSize, 0);
+        const { distanceLeft } = _calculateSizesWithinDistance({ main: viewportSize.main * 2, cross: viewportSize.cross * 2 }, idx, 'forward');
+        const { lastCalculatedIndex } = _calculateSizesWithinDistance(
+            { main: getBackwardDistance(viewportSize.main, distanceLeft.main), cross: getBackwardDistance(viewportSize.cross, distanceLeft.cross) },
+            { main: Math.max(0, idx.main - 1), cross: Math.max(0, idx.cross - 1) },
+            'backward'
+        );
+        _updatePositions(lastCalculatedIndex.main, positions.mainAxis);
+        _updatePositions(lastCalculatedIndex.cross, positions.crossAxis);
     };
 
     const totalSize = () => ({
