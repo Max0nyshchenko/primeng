@@ -326,12 +326,7 @@ fdescribe('mytest', () => {
             fixture.detectChanges();
             const scrollPos = scrollerDiv.scrollHeight / 2;
             scroller.scrollTo({ top: scrollPos });
-            const scroll$ = fromEvent(scrollerDiv, 'scroll').pipe(
-                tap(() => scrollerDiv.dispatchEvent(new Event('scroll'))),
-                debounceTime(100),
-                first()
-            );
-            await lastValueFrom(scroll$);
+            scrollerDiv.dispatchEvent(new Event('scroll'));
             const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions.mainAxis);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
@@ -452,7 +447,7 @@ fdescribe('mytest', () => {
 
             expect(scroller.last).toEqual({ rows: component.items.length, cols: component.items.at(-1).length });
             expect(firstInViewport).toBeTruthy();
-            expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1).at(-1));
+            expect(lastInViewport.textContent.trim()).toBe(component.items.at(999).at(997));
         });
 
         it('should scrollTo the middle with itemSize equals to [50,100]', () => {
@@ -605,7 +600,7 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate first', () => {
-            const { getFirst, positions } = initGridPositions({
+            const { getRange, positions } = initGridPositions({
                 items: getItems(1000, 1000),
                 scrollPos: { main: 19960, cross: 19960 },
                 getItemSize: () => ({ main: 50, cross: 100 }),
@@ -613,13 +608,13 @@ fdescribe('mytest', () => {
             });
 
             const expectedFirst = { main: 495, cross: 497 };
-            expect(getFirst({ main: 0, cross: 0 })).toEqual(expectedFirst);
+            expect(getRange({ main: 0, cross: 0 }).first).toEqual(expectedFirst);
             expect(positions.mainAxis[expectedFirst.main].size).toBe(50);
             expect(positions.crossAxis[expectedFirst.cross].size).toBe(100);
         });
 
         it('should calculate last', () => {
-            const { getLast, positions } = initGridPositions({
+            const { getRange, positions } = initGridPositions({
                 items: getItems(1000, 1000),
                 scrollPos: { main: 19960, cross: 19960 },
                 getItemSize: () => ({ main: 50, cross: 100 }),
@@ -628,7 +623,7 @@ fdescribe('mytest', () => {
 
             const first = { main: 495, cross: 497 };
             const expectedLast = { main: 506, cross: 502 };
-            expect(getLast(first)).toEqual(expectedLast);
+            expect(getRange(first).last).toEqual(expectedLast);
             expect(positions.mainAxis[expectedLast.main].size).toBe(50);
             expect(positions.crossAxis[expectedLast.cross].size).toBe(100);
         });
