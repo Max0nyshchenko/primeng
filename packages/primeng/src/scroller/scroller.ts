@@ -1316,8 +1316,9 @@ export const initGridPositions = <T>({
         const currFirstPos = itemPositions[currFirstIdx].pos;
         let newFirst = binarySearchFirst(Math.max(scrollPos - viewportSize, 0), itemPositions);
         const thresholdDistance = scrollPos - currFirstPos;
+        const triggerDistance = viewportSize / 2;
 
-        return thresholdDistance < viewportSize / 2 || thresholdDistance > viewportSize * 2 + viewportSize / 2 ? newFirst : currFirstIdx;
+        return thresholdDistance < triggerDistance || thresholdDistance > viewportSize + triggerDistance ? newFirst : currFirstIdx;
     };
 
     const _calculateLast = (firstIdx: number, totalScrollSize: number, viewportSize: number, itemPositions: ItemPos[]) => {

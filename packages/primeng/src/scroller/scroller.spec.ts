@@ -511,6 +511,19 @@ fdescribe('mytest', () => {
             expect(after.firstInViewport.getBoundingClientRect().left).toBeLessThan(scrollerDiv.getBoundingClientRect().left);
             expect(scroller.first['cols']).toBeLessThan(495);
         });
+
+        it('should calculate items on scroll right', () => {
+            const totalsize = scroller._poss.totalSize();
+            scrollerDiv.scrollTo({ top: totalsize.main / 2, left: totalsize.cross / 2 + 10 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            scrollerDiv.scrollTo({ top: scrollerDiv.scrollTop, left: scrollerDiv.scrollLeft + 250 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const { lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+
+            expect(lastInViewport.getBoundingClientRect().right).toBeGreaterThan(scrollerDiv.getBoundingClientRect().right);
+        });
     });
 
     describe('initGridPositions', () => {
