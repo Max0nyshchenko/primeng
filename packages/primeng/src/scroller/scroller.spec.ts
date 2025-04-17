@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { binarySearchFirst, initGridPositions, Scroller } from './scroller';
+import { binarySearchFirst, getShift, initGridPositions, Scroller } from './scroller';
 import { By } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 import { provideAnimations } from '@angular/platform-browser/animations';
@@ -140,8 +140,8 @@ fdescribe('mytest', () => {
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
             expect(scroller.last).toBe(scroller.items.length);
-            expect(firstInViewport).toBeTruthy();
-            expect(lastInViewport.textContent.trim()).toBe(component.items.at(-1));
+            expect(firstInViewport.textContent.trim()).toBe(component.items[995]);
+            expect(lastInViewport).toBeTruthy();
         });
 
         it('should scrollTo the middle with itemSize equals to 50', () => {
@@ -327,11 +327,10 @@ fdescribe('mytest', () => {
             const scrollPos = scrollerDiv.scrollHeight / 2;
             scroller.scrollTo({ top: scrollPos });
             scrollerDiv.dispatchEvent(new Event('scroll'));
-            const itemIdx = binarySearchFirst(scrollPos, scroller._poss.positions.mainAxis);
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItems(fixture, scrollerDiv);
 
-            expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx));
+            expect(firstInViewport.textContent.trim()).toBe(component.items.at(502));
             expect(lastInViewport).toBeTruthy();
         });
 
@@ -445,9 +444,9 @@ fdescribe('mytest', () => {
 
             const { firstInViewport, lastInViewport } = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
 
-            expect(scroller.last).toEqual({ rows: component.items.length, cols: component.items.at(-1).length });
-            expect(firstInViewport).toBeTruthy();
-            expect(lastInViewport.textContent.trim()).toBe(component.items.at(999).at(997));
+            expect(scroller.last).toEqual({ rows: component.items.length, cols: component.items.at(-1).length - 1 });
+            expect(firstInViewport.textContent.trim()).toBe(component.items[995][995]);
+            expect(lastInViewport).toBeTruthy();
         });
 
         it('should scrollTo the middle with itemSize equals to [50,100]', () => {
@@ -489,6 +488,28 @@ fdescribe('mytest', () => {
 
             expect(firstInViewport.textContent.trim()).toBe(component.items.at(itemIdx.main).at(itemIdx.cross));
             expect(lastInViewport).toBeTruthy();
+        });
+
+        it('should not flicker during smooth scrolling', () => {
+            const totalsize = scroller._poss.totalSize();
+            scrollerDiv.scrollTo({ top: totalsize.main / 2, left: totalsize.cross / 2 + 10 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const init = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+            expect(init.firstInViewport.getBoundingClientRect().left).toBeLessThan(scrollerDiv.getBoundingClientRect().left);
+            const diffCross = init.firstInViewport.getBoundingClientRect().left - scrollerDiv.getBoundingClientRect().left;
+            const diffMain = init.firstInViewport.getBoundingClientRect().top - scrollerDiv.getBoundingClientRect().top;
+            scrollerDiv.scrollTo({ top: scrollerDiv.scrollTop, left: scrollerDiv.scrollLeft - 200 });
+            scrollerDiv.dispatchEvent(new Event('scroll'));
+
+            const after = getBoundaryViewportItemsGrid(fixture, scrollerDiv);
+            expect(after.firstInViewport.textContent.trim()).toBe(component.items.at(499).at(495));
+            const diffCrossAfter = after.firstInViewport.getBoundingClientRect().left - scrollerDiv.getBoundingClientRect().left;
+            const diffMainAfter = after.firstInViewport.getBoundingClientRect().top - scrollerDiv.getBoundingClientRect().top;
+            expect(diffCross).toBe(diffCrossAfter);
+            expect(diffMain).toBe(diffMainAfter);
+            expect(after.firstInViewport.getBoundingClientRect().left).toBeLessThan(scrollerDiv.getBoundingClientRect().left);
+            expect(scroller.first['cols']).toBeLessThan(495);
         });
     });
 
@@ -600,10 +621,15 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate first', () => {
+            const scrollPos = { main: 19960, cross: 19960 };
             const { getRange, positions } = initGridPositions({
                 items: getItems(1000, 1000),
-                scrollPos: { main: 19960, cross: 19960 },
+                scrollPos,
                 getItemSize: () => ({ main: 50, cross: 100 }),
+                scrollTo: (x) => {
+                    scrollPos.main = x.main;
+                    scrollPos.cross = x.cross;
+                },
                 viewportSize: { main: 200, cross: 200 }
             });
 
@@ -614,10 +640,15 @@ fdescribe('mytest', () => {
         });
 
         it('should calculate last', () => {
+            const scrollPos = { main: 19960, cross: 19960 };
             const { getRange, positions } = initGridPositions({
                 items: getItems(1000, 1000),
-                scrollPos: { main: 19960, cross: 19960 },
+                scrollPos,
                 getItemSize: () => ({ main: 50, cross: 100 }),
+                scrollTo: (x) => {
+                    scrollPos.main = x.main;
+                    scrollPos.cross = x.cross;
+                },
                 viewportSize: { main: 200, cross: 200 }
             });
 
@@ -762,6 +793,68 @@ fdescribe('mytest', () => {
             positions2.at(idx, idx);
 
             expect(positions.positions).toEqual(positions2.positions);
+        });
+
+        it('should restore same item in viewport', () => {
+            const scrollPos = { main: 0, cross: 0 };
+            const positions = initGridPositions({
+                items: getItems(100),
+                scrollPos,
+                getItemSize: () => ({ main: 30, cross: 10 }),
+                viewportSize: { main: 200, cross: 200 },
+                scrollTo: ({ main, cross }) => {
+                    scrollPos.main = main;
+                    scrollPos.cross = cross;
+                },
+                onChange: ({ jump }) => {
+                    scrollPos.main += jump.main;
+                    scrollPos.cross += jump.cross;
+                }
+            });
+            scrollPos.main = positions.totalSize().main / 2;
+            scrollPos.cross = positions.totalSize().cross / 2;
+            positions.getRange({ main: 0, cross: 0 });
+            const firstInViewport = positions.numsInViewport().first;
+            const scrollPos2 = {
+                main: scrollPos.main + getShift({ scrollPos: scrollPos.main, prevItemPos: positions.positions.mainAxis[firstInViewport.main].pos, currItemPos: 40 * firstInViewport.main }),
+                cross: scrollPos.cross + getShift({ scrollPos: scrollPos.cross, prevItemPos: positions.positions.crossAxis[firstInViewport.cross].pos, currItemPos: 40 * firstInViewport.cross })
+            };
+            const positions2 = initGridPositions({
+                items: getItems(100),
+                scrollPos: scrollPos2,
+                getItemSize: () => ({ main: 30, cross: 10 }),
+                viewportSize: { main: 200, cross: 200 },
+                scrollTo: ({ main, cross }) => {
+                    scrollPos2.main = main;
+                    scrollPos2.cross = cross;
+                },
+                onChange: ({ jump }) => {
+                    scrollPos2.main += jump.main;
+                    scrollPos2.cross += jump.cross;
+                }
+            });
+            const firstInViewport2 = positions2.numsInViewport().first;
+
+            expect(firstInViewport).toEqual(firstInViewport2);
+        });
+
+        it('should get shift', () => {
+            const scrollPos = 50;
+            const shift = getShift({
+                scrollPos,
+                prevItemPos: 40,
+                currItemPos: 180
+            });
+            expect(scrollPos + shift).toBe(190);
+        });
+        it('should get shift 2', () => {
+            const scrollPos = 190;
+            const shift = getShift({ scrollPos, prevItemPos: 180, currItemPos: 40 });
+            expect(scrollPos + shift).toBe(50);
+        });
+        it('should get shift 3', () => {
+            const shift = getShift({ scrollPos: 0, prevItemPos: 0, currItemPos: 0 });
+            expect(shift).toBe(0);
         });
     });
 });
